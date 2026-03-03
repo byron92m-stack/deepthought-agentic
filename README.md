@@ -56,15 +56,15 @@ ARCHITECTURE DIAGRAM
                 │
                 ▼
 ┌──────────────────────────────┐
-│         API Layer             │
+│           API Layer           │
 │        FastAPI (api.py)       │
-│  POST /deepthought-graph      │
+│    POST /deepthought-graph    │
 └───────────────┬──────────────┘
                 │
                 ▼
 ┌──────────────────────────────┐
-│      Local Execution          │
-│   main.py / run_local.py      │
+│        Local Execution        │
+│     main.py / run_local.py    │
 └───────────────┬──────────────┘
                 │
                 ▼
