@@ -1,0 +1,24 @@
+fastapi
+uvicorn[standard]
+pydantic
+requests
+python-dotenv
+rich
+psutil
+
+# LangGraph + LangChain + Ollama
+langgraph
+langchain
+langchain-core
+langchain-community
+langchain-ollama
+ollama
+
+# Utilidades del agente
+GitPython
+pyyaml
+typing-extensions
+httpx
+tenacity
+anyio
+watchfiles
