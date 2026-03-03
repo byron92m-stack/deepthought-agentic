@@ -40,6 +40,7 @@ agentic/
 ├── run_local.py  
 └── .gitignore
 
+```
 ARCHITECTURE DIAGRAM
 ┌──────────────────────────────┐
 │          deepthought          │
@@ -72,6 +73,7 @@ ARCHITECTURE DIAGRAM
 │        Ollama Runtime         │
 │   Local LLM model execution   │
 └──────────────────────────────┘
+```
 
 Additional Local Components (not versioned):  
 - api_runs/ → API execution logs  
