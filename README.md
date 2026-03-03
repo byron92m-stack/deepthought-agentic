@@ -40,38 +40,38 @@ agentic/
 ├── run_local.py  
 └── .gitignore
 
-ARCHITECTURE DIAGRAM  
-                         ┌──────────────────────────────┐
-                         │          deepthought          │
-                         │     Executive Identity        │
-                         │          (Modelfile)          │
-                         └───────────────┬──────────────┘
-                                         │
-                                         ▼
-                         ┌──────────────────────────────┐
-                         │        Cognitive Layer        │
-                         │        LangGraph Graph        │
-                         │   app/graph.py (LLM node)     │
-                         └───────────────┬──────────────┘
-                                         │
-                                         ▼
-                         ┌──────────────────────────────┐
-                         │         API Layer             │
-                         │        FastAPI (api.py)       │
-                         │  POST /deepthought-graph      │
-                         └───────────────┬──────────────┘
-                                         │
-                                         ▼
-                         ┌──────────────────────────────┐
-                         │      Local Execution          │
-                         │   main.py / run_local.py      │
-                         └───────────────┬──────────────┘
-                                         │
-                                         ▼
-                         ┌──────────────────────────────┐
-                         │        Ollama Runtime         │
-                         │   Local LLM model execution   │
-                         └──────────────────────────────┘
+ARCHITECTURE DIAGRAM
+┌──────────────────────────────┐
+│          deepthought          │
+│     Executive Identity        │
+│          (Modelfile)          │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│        Cognitive Layer        │
+│        LangGraph Graph        │
+│   app/graph.py (LLM node)     │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│         API Layer             │
+│        FastAPI (api.py)       │
+│  POST /deepthought-graph      │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│      Local Execution          │
+│   main.py / run_local.py      │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│        Ollama Runtime         │
+│   Local LLM model execution   │
+└──────────────────────────────┘
 
 Additional Local Components (not versioned):  
 - api_runs/ → API execution logs  
