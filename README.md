@@ -123,9 +123,3 @@ Contact:
 Email: byron92m@gmail.com  
 GitHub: https://github.com/byron92m-stack  
 (open to remote roles worldwide)
- 
-Open to Work in: AI Engineering · Agentic Systems · LLM Orchestration · Backend Architecture · Distributed Systems · ML Pipelines  
-Contact:  
-Email: byron92m@gmail.com  
-Location: Ecuador (open to remote roles worldwide)  
-GitHub: https://github.com/byron92m-stack
