@@ -1,4 +1,4 @@
-AI Engineer | Agentic Systems Architect | LLM Orchestration | LangGraph & Ollama | Backend & Workflow Architecture | Open to Work
+AI Engineer | Agentic Systems Architect | LLM Orchestration | LangGraph & Ollama | Backend & Workflow Architecture
 
 --------------------------------------------------------------------------------
 deepthought-agentic
