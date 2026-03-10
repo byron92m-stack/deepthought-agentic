@@ -16,6 +16,23 @@ experiments introduce instability, this commit serves as the canonical point to
 return to.
 
 --------------------------------------------------------------------------------
+SUPPORTED PLATFORMS
+--------------------------------------------------------------------------------
+
+deepthought-agentic is developed and tested primarily on:
+
+- **Linux (Ubuntu / Debian)**
+- **WSL2 on Windows** (recommended for Windows users)
+- macOS (supported but not the primary development environment)
+
+Linux/WSL2 is the **recommended environment** because:
+- Ollama runs natively and more efficiently
+- File paths and permissions behave consistently
+- Local execution and LangGraph workflows are more stable
+
+All instructions in this README assume a **Linux or WSL2 environment**.
+
+--------------------------------------------------------------------------------
 SUMMARY
 --------------------------------------------------------------------------------
 
@@ -152,7 +169,7 @@ This guarantees:
 - zero contamination from runtime state
 
 --------------------------------------------------------------------------------
-RUNNING THE PROJECT
+RUNNING THE PROJECT (LINUX / WSL2)
 --------------------------------------------------------------------------------
 
 Install dependencies:
@@ -174,6 +191,32 @@ Test the endpoint:
 curl -X POST http://localhost:8000/deepthought-graph \
      -H "Content-Type: application/json" \
      -d '{"input": "Hello deepthought"}'
+
+--------------------------------------------------------------------------------
+COLD START — HOW TO RECOVER THE AGENT IF EVERYTHING CLOSES
+--------------------------------------------------------------------------------
+
+If all terminals close, or the machine restarts:
+
+1. Activate environment  
+   source venv/bin/activate
+
+2. Start Ollama  
+   ollama serve
+
+3. (Optional) Rebuild model if missing  
+   ollama create deepthought -f Modelfile
+
+4. Run the agent  
+   python main.py  
+   or  
+   uvicorn api:app --reload --port 8000
+
+5. If something breaks, restore the stable checkpoint  
+   git checkout main  
+   git pull origin main
+
+This guarantees a **full recovery** to the stable v1.0 baseline.
 
 --------------------------------------------------------------------------------
 ROADMAP
@@ -201,25 +244,26 @@ v3.0 — Integrations
 PROJECT PHILOSOPHY
 --------------------------------------------------------------------------------
 
-- Determinism first: reproducible behavior across runs
-- Strict modularity: identity, cognition, and exposure remain separate
-- Scalable design: minimal core, expandable architecture
-- Operational clarity: no contamination, no ambiguity, no hidden state
+- Determinism first: reproducible behavior across runs  
+- Strict modularity: identity, cognition, and exposure remain separate  
+- Scalable design: minimal core, expandable architecture  
+- Operational clarity: no contamination, no ambiguity, no hidden state  
+
+--------------------------------------------------------------------------------
+ABOUT
+--------------------------------------------------------------------------------
+
+I design and build modular agentic AI systems with a strong focus on deterministic
+behavior, cognitive architecture, and workflow orchestration.
+
+deepthought-agentic represents a clean, stable foundation for multi-agent swarms,
+autonomous workflows, and advanced reasoning pipelines.
 
 --------------------------------------------------------------------------------
 ABOUT ME
 --------------------------------------------------------------------------------
 
 AI Engineer | Agentic Systems Architect | LLM Orchestration | Backend Architecture
-
-I design and build modular agentic AI systems with a strong focus on deterministic
-behavior, cognitive architecture, and workflow orchestration.
-
-My work blends LLM engineering, backend architecture, and systems design, creating
-agents that are reproducible, interpretable, and ready for real-world integration.
-
-deepthought-agentic represents a clean, stable foundation for multi-agent swarms,
-autonomous workflows, and advanced reasoning pipelines.
 
 Open to Work — Remote roles worldwide
 
