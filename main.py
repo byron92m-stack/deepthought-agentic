@@ -1,24 +1,27 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from app.graph import get_graph
 
-from app.graph import build_graph
+def main():
+    graph = get_graph()
 
-graph_app = build_graph()
-app = FastAPI()
+    print("deepthought – Full Cognitive Graph v1.1")
+    print("Type 'exit' to quit.\n")
+
+    while True:
+        user_input = input("You: ")
+
+        if user_input.lower() in ["exit", "quit"]:
+            print("Goodbye.")
+            break
+
+        state = {
+            "input": user_input,
+            "messages": [],
+            "output": None,
+        }
+
+        result = graph.invoke(state)
+        print("\ndeepthought:", result["output"], "\n")
 
 
-class Query(BaseModel):
-    input: str
-
-
-@app.post("/analyze")
-def analyze(query: Query):
-    state = {
-        "user_input": query.input,
-        "analysis": None,
-    }
-
-    final_state = graph_app.invoke(state)
-    return {
-        "analysis": final_state["analysis"],
-    }
+if __name__ == "__main__":
+    main()

@@ -1,18 +1,24 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from app.graph import build_graph
+from app.graph import get_graph
 
-app = FastAPI()
-graph = build_graph()
+app = FastAPI(title="deepthought – Full Cognitive Graph v1.1")
+
+graph = get_graph()
 
 class Query(BaseModel):
-    user_input: str
+    input: str
 
 @app.post("/deepthought-graph")
 def run_graph(query: Query):
     state = {
-        "user_input": query.user_input,
-        "analysis": None,
+        "input": query.input,
+        "messages": [],
+        "output": None,
     }
-    result = graph.invoke(state)
-    return result
+
+    final_state = graph.invoke(state)
+
+    return {
+        "response": final_state["output"]
+    }

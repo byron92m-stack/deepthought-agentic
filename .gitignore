@@ -1,6 +1,7 @@
 venv/
 __pycache__/
+*.pyc
+.pytest_cache/
 runs/
 api_runs/
-*.log
-*.pyc
+app/memory_v2_clean.json
