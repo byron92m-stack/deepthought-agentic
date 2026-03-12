@@ -482,11 +482,11 @@ WSL portability risk (current):
 ---
 
 ## Roadmap
-
+```
 v1.1 — Deterministic cognitive graph (current)
 v2.0 — Multi-agent swarm
 v3.0 — Integrations and GUI
-
+```
 ---
 
 ## About
