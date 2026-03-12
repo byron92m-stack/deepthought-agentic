@@ -1,29 +1,30 @@
 # deepthought-agentic (v1.1)
 
 Deterministic, modular agentic AI architecture for reproducible reasoning, explicit memory, and clean orchestration.
-Runs locally with Ollama + a cognitive graph (graph.py) + optional FastAPI exposure.
+Designed for local execution using Ollama, a deterministic cognitive graph, and optional FastAPI exposure.
+
+This repository is engineered so the entire system can be recovered from scratch on a new machine (Linux, WSL2, or macOS) with no hidden state, no legacy files, and no undocumented dependencies.
 
 ---
 
-## What this repo is
+## What this project is
 
-deepthought-agentic is a local “cognitive agent” system with three strict layers:
+deepthought-agentic is a local cognitive-agent system built around three strictly separated layers:
 
-1) Identity (Model Constitution)
-- Defined only in: Modelfile
+1) Identity  
+Defined only in `Modelfile`.  
+This is the executive constitution of the agent: persona, constraints, and high-level reasoning posture.
 
-2) Cognition (Reasoning + Control Flow + Memory I/O)
-- Defined only in: app/graph.py
+2) Cognition  
+Defined only in `app/graph.py`.  
+This is the deterministic cognitive graph responsible for routing, reasoning, and memory I/O.
 
-3) Exposure (How you run it)
-- CLI: main.py
-- API: api.py (FastAPI)
+3) Exposure  
+How the system is executed:
+- CLI: `main.py`
+- API: `api.py` (FastAPI)
 
-The goal is operational clarity:
-- No duplicated prompts
-- No hidden system_prompt files
-- No legacy memory files in runtime
-- One memory file, explicitly read/written
+There are no parallel prompts, no hidden system files, and no implicit memory.
 
 ---
 
@@ -41,18 +42,18 @@ The goal is operational clarity:
     ├── graph.py
     └── memory_v2_clean.json
 ```
-Additional local components (not versioned / not required for recovery):
-- api_runs/  → API execution logs (local)
-- runs/      → graph execution logs (local)
-- venv/      → local Python environment (local)
+Additional local-only directories (not versioned, not required for recovery):
+- api_runs/  → API execution logs
+- runs/      → graph execution logs
+- venv/      → local Python virtual environment
 
-If you clone this repo on a new machine, you only need the versioned files above.
+Only the versioned files above are required to recover the project on a new machine.
 
 ---
 
 ## 🧠 Cognitive architecture (v1.1)
 
-Deepthought is built around a deterministic cognitive graph that separates identity, reasoning, memory, and execution.
+Deepthought is built around a deterministic cognitive graph that cleanly separates identity, reasoning, memory, and execution.
 
 High-level mental model:
 ```
@@ -84,206 +85,179 @@ High-level mental model:
 │   (FastAPI / uvicorn)        │
 └──────────────────────────────┘
 ```
-Core components:
-
-- Model Identity (Modelfile)
-  - Defines executive identity, constraints, and high-level posture.
-  - Immutable at runtime (the “constitution”).
-
-- Cognitive Graph (app/graph.py)
-  - Single source of truth for reasoning flow.
-  - Responsible for:
-    - input routing
-    - node execution
-    - memory reads/writes
-    - deterministic control flow
-
-- Memory (app/memory_v2_clean.json)
-  - Persistent explicit memory store.
-  - No hidden state.
-  - All memory mutations are intentional and traceable.
-
-- Execution layer
-  - CLI: main.py
-  - API: api.py (FastAPI)
-
 Design principles enforced in v1.1:
-- Single source of truth (identity/cognition/memory each live in exactly one place)
-- Determinism first (same input + same memory => same behavior)
-- No hidden prompts (no parallel system_prompt files)
-- Auditability (reasoning steps + memory mutations are inspectable)
-- Scalable by extension (add nodes/agents without contaminating the core)
+- Single source of truth per layer
+- Determinism first (same input + same memory = same behavior)
+- No hidden prompts or legacy files
+- Full auditability
+- Scalable by extension, not mutation
 
 ---
 
 ## 📦 Versioning & recovery (GitHub)
 
-This repository preserves multiple reference points for safe recovery and controlled evolution.
-
 Branches:
-- main
-  - Historical baseline (v1.0). Minimal architecture preserved for reference.
-
-- v1.1-dev
-  - Active development branch built on top of the v1.1 stable baseline.
+- `main` → historical baseline (v1.0)
+- `v1.1-dev` → active development
 
 Tags:
-- v1.1-stable
-  - Frozen, audited baseline for recovery.
-  - Recommended restore point for “clean v1.1”.
+- `v1.1-stable` → frozen, audited recovery baseline
 
-Recovery from any machine (stable baseline):
-1) Clone
-   git clone https://github.com/byron92m-stack/deepthought-agentic
-2) Enter repo
-   cd deepthought-agentic
-3) Checkout stable baseline
-   git checkout v1.1-stable
-
-Continue development:
-- git checkout v1.1-dev
-
-Verify you have the tag locally:
-- git fetch --tags
-- git tag
-- git show v1.1-stable --oneline
+Recovery from any machine:
+git clone https://github.com/byron92m-stack/deepthought-agentic
+cd deepthought-agentic
+git checkout v1.1-stable
 
 ---
 
-## Requirements (for a fresh machine)
+## Platform support
 
-You need:
-- Python 3.10+ (recommended)
+Supported and tested environments:
+- Linux (recommended)
+- Windows + WSL2 (fully supported)
+- macOS
+
+No OS-specific code paths are used.
+
+---
+
+## Requirements (fresh machine)
+
+- Python 3.10+
 - pip
+- Git
 - Ollama installed and available in PATH
-- A local LLM pulled/available via Ollama
 
-Optional:
-- uvicorn (installed via requirements.txt)
-- curl (for API testing)
+All Python dependencies are defined in `requirements.txt`.
 
 ---
 
-## Setup (fresh machine)
+## Linux setup (native)
 
-1) Create and activate a virtual environment (recommended)
+1) System dependencies:
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip curl git
 
-Linux/macOS:
-- python -m venv venv
-- source venv/bin/activate
+2) Install Ollama:
+curl -fsSL https://ollama.com/install.sh | sh
 
-Windows PowerShell:
-- python -m venv venv
-- .\venv\Scripts\Activate.ps1
+3) Clone and checkout:
+git clone https://github.com/byron92m-stack/deepthought-agentic
+cd deepthought-agentic
+git checkout v1.1-stable
 
-2) Install dependencies
-- pip install -r requirements.txt
+4) Python environment:
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 
-3) Start Ollama
-- ollama serve
-
-4) Build/create the model defined by Modelfile
-- ollama create deepthought -f Modelfile
-
-Notes:
-- The model name used by this project is: deepthought
-- If you change it, update your runtime calls accordingly.
+5) Create model:
+ollama serve
+ollama create deepthought -f Modelfile
 
 ---
 
-## Running the project (CLI)
+## Windows + WSL2 setup (IMPORTANT)
 
-Run the cognitive graph:
-- python main.py
+This project runs **inside WSL**, not directly on Windows Python.
 
-This should start the interactive loop (or whatever main.py implements in your current v1.1).
+### WSL requirements
+- Windows 10/11
+- WSL2 enabled
+- Ubuntu 22.04+ recommended
+
+### Critical rules for WSL
+- The project MUST live inside the Linux filesystem:
+  /home/<user>/deepthought-agentic
+- Do NOT run from /mnt/c or Windows paths
+- Ollama must run inside WSL, not Windows
+
+### Setup steps
+
+1) Install WSL (from PowerShell):
+wsl --install
+
+2) Open Ubuntu (WSL terminal)
+
+3) Install system dependencies:
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip curl git
+
+4) Install Ollama inside WSL:
+curl -fsSL https://ollama.com/install.sh | sh
+
+5) Clone the repo:
+git clone https://github.com/byron92m-stack/deepthought-agentic
+cd deepthought-agentic
+git checkout v1.1-stable
+
+6) Python environment:
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+7) Start Ollama and create model:
+ollama serve
+ollama create deepthought -f Modelfile
+
+### Networking note (WSL)
+- FastAPI runs on localhost:8000 inside WSL
+- Windows browser can access it via http://localhost:8000
+- No port forwarding required
 
 ---
 
-## Running the project (API)
+## Running the project
 
-Start the API server:
-- uvicorn api:app --reload --port 8000
+CLI:
+python main.py
 
-Endpoint:
-- POST /deepthought-graph
+API:
+uvicorn api:app --reload --port 8000
 
-Example request:
+Test:
 curl -X POST http://localhost:8000/deepthought-graph \
   -H "Content-Type: application/json" \
   -d '{"input": "Hello deepthought"}'
 
-If your API expects a different JSON key than "input", update the curl payload to match api.py.
-
 ---
 
-## Operational notes (reproducibility)
+## Operational rules (do not break reproducibility)
 
-To keep behavior reproducible:
-- Do not add extra prompt files (no system_prompt.txt in runtime).
-- Keep identity only in Modelfile.
-- Keep cognition only in app/graph.py.
-- Keep memory only in app/memory_v2_clean.json.
-
-If you want experiments:
-- Do them on v1.1-dev (branch), not on the v1.1-stable tag.
+- Identity lives only in `Modelfile`
+- Cognition lives only in `app/graph.py`
+- Memory lives only in `app/memory_v2_clean.json`
+- Do not add system_prompt files
+- Do not mutate the v1.1-stable tag
+- All experiments go in `v1.1-dev`
 
 ---
 
 ## Troubleshooting
 
 Ollama not responding:
-- Ensure it is running: ollama serve
-- Ensure the model exists: ollama list
-- Recreate model if needed: ollama create deepthought -f Modelfile
+- ollama serve
+- ollama list
+- ollama create deepthought -f Modelfile
 
-API runs but endpoint fails:
-- Confirm uvicorn is running on port 8000
-- Confirm route exists in api.py: /deepthought-graph
-- Confirm request JSON matches what api.py expects
-
-Import errors:
-- Reinstall deps: pip install -r requirements.txt
-- Ensure you are in the venv
-- Ensure you are running from repo root
+WSL issues:
+- Ensure you are not running from /mnt/c
+- Ensure Ollama is running inside WSL
+- Restart WSL if networking behaves oddly: wsl --shutdown
 
 ---
 
 ## Roadmap
 
-v1.1 — Full Cognitive Graph (current)
-- Deterministic reasoning graph
-- Persistent memory
-- Clean separation of concerns
-
-v2.0 — Multi-Agent Swarm
-- Executive director agent
-- Specialized executor agents
-- Internal evaluation loops
-- Dynamic orchestration
-
-v3.0 — Integrations
-- ETL pipelines
-- Trading systems
-- Monitoring agents
-- Local GUI
-
----
-
-## Project philosophy
-
-- Determinism first: reproducible behavior across runs
-- Strict modularity: identity, cognition, and exposure remain separate
-- Scalable design: minimal core, expandable architecture
-- Operational clarity: no contamination, no ambiguity, no hidden state
+v1.1 — Deterministic cognitive graph (current)
+v2.0 — Multi-agent swarm
+v3.0 — Integrations and GUI
 
 ---
 
 ## About
 
 AI Engineer | Agentic Systems Architect | LLM Orchestration | LangGraph & Ollama | Backend & Workflow Architecture | Open to Work
-
-I design and build modular agentic AI systems with a strong focus on deterministic behavior, cognitive architecture, and workflow orchestration. My work blends LLM engineering, backend architecture, and systems design, creating agents that are reproducible, interpretable, and ready for real-world integration.
 
 Contact:
 Email: byron92m@gmail.com
