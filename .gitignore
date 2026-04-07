@@ -15,3 +15,6 @@ api_runs/
 # Editor
 .vscode/
 .idea/
+
+# Local archives (not versioned)
+archive/
