@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+
+# Runtime artifacts
+runs/
+api_runs/
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/

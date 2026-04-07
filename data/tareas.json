@@ -1,0 +1,12 @@
+[
+  {
+    "id": "ca61c3f7-0ec2-43d3-87db-85819d24f39e",
+    "descripcion": "Probar herramientas",
+    "estado": "en_progreso"
+  },
+  {
+    "id": "43f6723f-1485-4354-9081-775878674273",
+    "descripcion": "Tarea desde tools_node",
+    "estado": "pendiente"
+  }
+]
