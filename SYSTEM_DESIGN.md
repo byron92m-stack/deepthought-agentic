@@ -1,151 +1,206 @@
-# Deepthought — System Design Document (v1.1)
+DeepThought — System Design Document (v1.1)
 
-## 1. Design Philosophy
+Baseline Header — v1.1 (Saneado)
 
-Deepthought is designed as a deterministic cognitive graph rather than a monolithic LLM wrapper. The system prioritizes:
+This document describes the operational system design of DeepThought as of v1.1-stable.
+Its primary goal is recovery and auditability: a new machine must be able to rebuild
+and run the system using only this repository.
 
-- **Modularity** — each cognitive function is isolated in a node.
-- **Determinism** — the router selects agents based on explicit rules.
-- **Transparency** — every step is logged and auditable.
-- **Extensibility** — new nodes and agents can be added without breaking the system.
-- **Persistence** — memory and profile survive across sessions.
-- **Offline operation** — the system runs fully local using a Modelfile-defined LLM.
+Frozen baseline elements:
+- Graph structure and node roles
+- Node contracts (see NODE_CONTRACTS.md)
+- Tool invocation via state["tool_call"]
+- Memory loading discipline (explicit, versioned)
+- Router decision flow (select exactly one next node)
+
+Out of scope for baseline:
+- Experimental integrations
+- External cloud services
+- Non-local inference backends
+
+------------------------------------------------------------
+
+1. Design Philosophy
+
+DeepThought is designed as a deterministic cognitive graph rather than a monolithic
+LLM wrapper. The system prioritizes:
+
+- Modularity — each cognitive function is isolated in a node.
+- Determinism — the router selects nodes based on explicit rules.
+- Transparency — every step is auditable through state and logs.
+- Extensibility — new nodes can be added without breaking the system.
+- Persistence discipline — memory is explicit and versioned.
+- Offline operation — the system runs fully local using a Modelfile-defined LLM.
 
 This design ensures reproducibility, auditability, and controlled cognitive behavior.
 
----
+------------------------------------------------------------
 
-## 2. Core Components
+2. Core Components
 
-### 2.1 Orchestrator (`main.py`)
+2.1 Orchestrator (main.py)
+
 The orchestrator is responsible for:
-
 - loading persistent memory,
-- initializing the user profile,
+- initializing the graph state,
 - instantiating the cognitive graph,
-- running the interactive loop,
-- delegating execution to the router,
-- saving memory after each interaction.
+- running the interactive loop or API mode,
+- delegating execution to the router.
 
-It acts as the runtime supervisor.
+The orchestrator supervises execution but does not perform reasoning or tool execution.
 
----
+------------------------------------------------------------
 
-## 3. Cognitive Graph Architecture
+3. Cognitive Graph Architecture
 
-The cognitive graph is defined in `app/graph.py`. It is a directed graph where each node represents a cognitive function.
+The cognitive graph is defined in app/graph.py.
+It is a directed graph where each node represents a single cognitive function.
 
-### 3.1 Node Types
+3.1 Node Types
 
-- **load_memory** — injects persistent memory into graph state.
-- **router** — determines which agent should handle the input.
-- **llm** — general-purpose reasoning and technical responses.
-- **analysis** — structured reasoning (problem, causes, risks, scenarios, recommendations).
-- **summarizer** — executive summaries.
-- **command** — technical command explanations.
+- load_memory
+  Injects persistent memory into graph state.
+
+- router
+  Determines which node should execute next.
+
+- llm
+  General-purpose technical reasoning.
+
+- analysis
+  Structured deterministic reasoning.
+
+- summarizer
+  Executive summaries.
+
+- command
+  Technical command explanations.
+
+- tools
+  Controlled execution of side-effectful actions via tool_call.
 
 Each node has:
-- a purpose,
-- a prompt template,
-- an expected output format,
+- a defined purpose,
+- an input contract,
+- an output contract,
 - a transition rule.
 
----
+------------------------------------------------------------
 
-## 4. Router Design
+4. Router Design
 
-The router is the central decision-making component. It evaluates:
+The router is the central decision-making component.
 
+It evaluates:
 - user intent,
 - linguistic patterns,
 - memory context,
 - system state.
 
-It selects one of the agents based on deterministic rules. This prevents hallucinations and ensures predictable behavior.
-
-### Router responsibilities:
+Router responsibilities:
 - classify intent,
-- select the correct node,
+- select exactly one valid next node,
 - enforce cognitive discipline,
-- prevent invalid transitions.
+- prevent invalid transitions,
+- never execute tools directly,
+- never modify memory.
 
----
+------------------------------------------------------------
 
-## 5. Memory System
+4.1 Tools Execution (Critical)
 
-### 5.1 Persistent Memory (`memory_v2_clean.json`)
-Stores:
-- conversation history,
-- user profile,
-- system state.
+All side-effectful actions are executed exclusively through the tools node.
+
+Tool execution is requested via an explicit tool_call object in the graph state:
+
+state["tool_call"] = {
+    "name": "<tool_name>",
+    "args": {...}
+}
+
+The tools node:
+- executes the tool via the tool registry,
+- writes formatted output to state["output"],
+- appends output to state["messages"],
+- returns control to the router.
+
+Direct tool execution from LLM or router nodes is forbidden.
+This ensures deterministic and auditable execution.
+
+------------------------------------------------------------
+
+5. Memory System
+
+5.1 Persistent Memory
+
+Baseline memory snapshot:
+memory_v2_clean.json
 
 Memory is:
-- loaded at startup,
+- loaded explicitly at startup,
 - injected into graph state,
-- updated after each interaction,
-- saved automatically.
+- updated in memory state during execution.
 
-### 5.2 Profile
-A persistent `profile.user` file stores long-term identity and preferences.
+Persistence behavior depends on runtime configuration.
 
----
+5.2 Profile
 
-## 6. Logging System
+A persistent user profile may be created at runtime and reused across sessions.
 
-### 6.1 Interactive logs (`runs/`)
-Each session produces:
+------------------------------------------------------------
+
+6. Logging System
+
+6.1 Interactive logs
+
+Stored in:
+runs/
+
+6.2 API logs
+
+Stored in:
+api_runs/
+
+Logs may include:
 - input,
 - selected route,
 - node transitions,
 - outputs,
-- errors (if any).
+- errors.
 
-### 6.2 API logs (`api_runs/`)
-Same structure, but for API calls.
+Logs support debugging, auditing, and reproducibility.
 
-Logs enable:
-- debugging,
-- reproducibility,
-- auditing,
-- regression testing.
+------------------------------------------------------------
 
----
+7. API Layer
 
-## 7. API Layer (`api.py`)
+api.py exposes the cognitive graph through a REST interface.
 
-The API exposes the cognitive graph through a REST interface.
+Example request:
 
-Example:
-
-```bash
 curl -X POST http://localhost:8000/deepthought-graph \
 -H "Content-Type: application/json" \
 -d '{"input": "hello"}'
-```
 
 The API executes the same graph as interactive mode.
 
----
+------------------------------------------------------------
 
-## 8. Local LLM Runtime
+8. Local LLM Runtime
 
-The `Modelfile` defines:
+The Modelfile defines:
 - model path,
 - inference parameters,
 - runtime configuration.
 
-This ensures:
-- offline operation,
-- reproducible inference,
-- consistent behavior across sessions.
+This enables fully offline and reproducible inference.
 
----
+------------------------------------------------------------
 
-## 9. Internal Data Flow
+9. Internal Data Flow
 
-### 9.1 High-level flow
+9.1 High-level flow
 
-```
 User Input
     ↓
 main.py (orchestrator)
@@ -154,99 +209,82 @@ load_memory
     ↓
 router
     ↓
-selected agent (llm / analysis / summarizer / command)
+selected node (llm / analysis / summarizer / command / tools)
     ↓
-output
+output appended to state
     ↓
-memory update
-    ↓
-logging
-    ↓
-return to user
-```
+return to router
 
-### 9.2 State propagation
+9.2 State propagation
+
 Each node receives:
-- the current graph state,
-- the user input,
-- the memory context.
+- current graph state,
+- user input,
+- memory context.
 
 Each node returns:
 - updated state,
 - output,
 - next node.
 
----
+------------------------------------------------------------
 
-## 10. Design Constraints
+10. Design Constraints
 
 - The graph must remain deterministic.
-- Memory must never be mutated outside the orchestrator.
+- Memory must not be mutated implicitly.
 - Router rules must be explicit and auditable.
 - Nodes must not call each other directly.
-- All transitions must be defined in the graph.
+- Tool execution must occur only through tools node.
 
----
+------------------------------------------------------------
 
-## 11. Extensibility Guidelines
+11. Extensibility Guidelines
 
-### 11.1 Adding a new node
-1. Create a new function in `app/graph.py`.
-2. Define:
-   - purpose,
-   - prompt template,
-   - expected output,
-   - transition rule.
-3. Register the node in the graph.
-4. Update the router if needed.
+11.1 Adding a new node
 
-### 11.2 Adding a new agent
-Agents are specialized nodes. Requirements:
-- clear purpose,
-- deterministic output format,
-- minimal overlap with existing agents.
+1) Define the node function.
+2) Specify purpose, input, output, and transition rule.
+3) Register the node in the graph.
+4) Update router rules if required.
+5) Document the contract in NODE_CONTRACTS.md.
 
-### 11.3 Modifying the router
+11.2 Modifying the router
+
 Router changes must:
 - be explicit,
 - be documented,
-- not break existing transitions.
+- preserve existing valid transitions.
 
----
+------------------------------------------------------------
 
-## 12. Risks and Limitations
+12. Risks and Limitations
 
-- Router misclassification can lead to incorrect agent selection.
+- Router misclassification can lead to incorrect node selection.
 - Memory corruption can affect reasoning.
-- Adding nodes without clear contracts can destabilize the graph.
-- Overlapping agent responsibilities can cause ambiguity.
+- Poorly defined node contracts can destabilize the graph.
+- Overlapping node responsibilities can cause ambiguity.
 
----
+------------------------------------------------------------
 
-## 13. Evolution Roadmap
+13. Evolution Roadmap
 
-### v1.2
-- modularize prompts,
-- add validation layer for node outputs,
-- improve router heuristics.
+v1.2
+- validation layer for node outputs
+- router rule hardening
 
-### v1.3
-- introduce tool-use nodes,
-- add structured memory segments.
+v1.3
+- structured memory segmentation
+- improved audit tooling
 
-### v2.0
-- multi-agent orchestration,
-- external tool integration,
-- distributed graph execution.
+------------------------------------------------------------
 
----
-
-## 14. Status (Verified)
+14. Status (Verified)
 
 - Graph functional.
 - Router operational.
-- Memory stable.
+- Tools node operational.
+- Memory baseline stable.
 - API available.
 - Logs clean.
-- VHDX is the single source of truth.
-
+- Repository is the single source of truth.

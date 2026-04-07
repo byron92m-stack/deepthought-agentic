@@ -1,225 +1,269 @@
-# Deepthought — Cognitive Graph Architecture (v1.1)
+DeepThought — Cognitive Graph Architecture (v1.1)
 
-## 1. Overview
-Deepthought is a local cognitive graph system running inside WSL2. It combines a modular graph architecture, a task router, persistent memory, and a local LLM defined through a Modelfile. The system operates fully offline and is executed from:
+1. Overview
 
-```
-/home/nw/deepthought
-```
+DeepThought is a local-first cognitive graph system designed for deterministic,
+auditable orchestration of reasoning and controlled execution.
 
-This directory is the single source of truth.
+The system runs fully offline and is executed from:
 
----
+/home/nw/agenticai
 
-## 2. Project Structure
+This directory is the single source of truth for recovery and operation.
 
-```
-deepthought/
+
+------------------------------------------------------------
+2. Project Structure
+
+agenticai/
 ├── Modelfile
 ├── README.md
 ├── api.py
 ├── api_runs/
 ├── app/
 │   ├── __init__.py
-│   └── graph.py
+│   ├── graph.py
+│   └── nodes/
 ├── main.py
 ├── memory_v2_clean.json
 ├── requirements.txt
 ├── runs/
 └── venv/
-```
 
-### Component roles
+Component roles:
 
-- **main.py** — Orchestrator and interactive loop.
-- **app/graph.py** — Cognitive graph definition, nodes, router, and agent logic.
-- **memory_v2_clean.json** — Persistent memory store.
-- **api.py** — Optional REST API interface.
-- **api_runs/** — Logs for API executions.
-- **runs/** — Logs for interactive executions.
-- **venv/** — Isolated Python environment.
-- **Modelfile** — Local LLM configuration.
+- main.py
+  Entry point and interactive orchestrator loop.
 
----
+- app/graph.py
+  Cognitive graph definition and node wiring.
 
-## 3. Execution Flow
+- app/nodes/
+  Node implementations (router, llm, analysis, tools, etc.).
 
-### 3.1 Startup sequence
-1. Load persistent memory.
-2. Initialize user profile.
-3. Initialize cognitive graph.
-4. Enter interactive loop or API mode.
+- memory_v2_clean.json
+  Baseline sanitized memory snapshot used for recovery.
 
-### 3.2 Interaction cycle
-1. User sends input.
-2. Router analyzes intent.
-3. Router selects an agent.
-4. Agent executes its specialized prompt.
-5. Output is returned.
-6. Memory is updated and saved.
-7. Logs are written to `runs/` or `api_runs/`.
+- api.py
+  Optional REST API interface.
 
----
+- runs/
+  Logs for interactive executions.
 
-## 4. Cognitive Graph
+- api_runs/
+  Logs for API executions.
 
-The graph is defined in `app/graph.py`. It contains:
+- venv/
+  Isolated Python environment.
 
-### 4.1 Nodes
-- **load_memory** — Loads memory into graph state.
-- **router** — Selects the appropriate agent.
-- **llm** — General-purpose technical responses.
-- **analysis** — Structured reasoning (problem, causes, risks, scenarios, recommendations).
-- **summarizer** — Executive summaries.
-- **command** — Technical command explanations.
+- Modelfile
+  Local LLM configuration for offline inference.
 
-### 4.2 Router
+
+------------------------------------------------------------
+3. Execution Flow
+
+3.1 Startup sequence
+
+1) Load persistent memory via load_memory node.
+2) Initialize graph state.
+3) Initialize cognitive graph.
+4) Enter interactive loop or API mode.
+
+3.2 Interaction cycle
+
+1) User provides input.
+2) Router analyzes intent.
+3) Router selects exactly one next node.
+4) Selected node executes.
+5) Output is appended to state["messages"].
+6) Control returns to router.
+
+
+------------------------------------------------------------
+4. Cognitive Graph
+
+The graph is defined in app/graph.py.
+
+4.1 Nodes
+
+- load_memory
+  Loads memory into graph state.
+
+- router
+  Selects the appropriate next node based on intent.
+
+- llm
+  General-purpose technical reasoning.
+
+- analysis
+  Structured deterministic reasoning.
+
+- summarizer
+  Executive summaries.
+
+- command
+  Technical command explanations.
+
+- tools
+  Controlled execution of side-effectful actions.
+
+
+4.2 Router behavior
+
 The router evaluates:
-- user intent,
-- linguistic patterns,
-- memory context,
-- system state.
+- user intent
+- linguistic patterns
+- memory context
+- system state
 
-It then selects one of the agents above.
+It must:
+- select exactly one valid node
+- never execute tools directly
+- never modify memory
 
----
 
-## 5. Memory System
+------------------------------------------------------------
+5. Tool Execution Layer (Critical)
 
-### 5.1 Persistent memory
-Stored in:
+All side-effectful actions are executed exclusively through the tools node.
 
-```
+Tool execution is requested via an explicit tool_call object in the graph state:
+
+state["tool_call"] = {
+    "name": "<tool_name>",
+    "args": {...}
+}
+
+The tools node:
+- executes the tool via the tool registry
+- writes formatted output to state["output"]
+- appends output to state["messages"]
+
+Direct tool execution from LLM or router nodes is forbidden.
+
+This guarantees:
+- deterministic execution
+- auditable state transitions
+- separation of reasoning and action
+
+
+------------------------------------------------------------
+6. Memory System
+
+6.1 Persistent memory
+
+Baseline memory snapshot:
+
 memory_v2_clean.json
-```
 
 Memory is:
-- loaded at startup,
-- injected into graph state,
-- updated after each interaction,
-- saved automatically.
+- loaded explicitly at startup
+- injected into graph state
+- updated in memory state during execution
 
-### 5.2 Profile
-A persistent profile file (`profile.user`) is created on first run and reused.
+Persistence behavior depends on runtime configuration.
 
----
+6.2 Profile
 
-## 6. Logging System
+A persistent user profile may be created at runtime and reused across sessions.
 
-### 6.1 Interactive logs
+
+------------------------------------------------------------
+7. Logging System
+
+7.1 Interactive logs
+
 Stored in:
 
-```
 runs/
-```
 
-### 6.2 API logs
+7.2 API logs
+
 Stored in:
 
-```
 api_runs/
-```
 
-Logs include:
-- input,
-- selected route,
-- node transitions,
-- outputs,
-- errors (if any).
+Logs may include:
+- input
+- selected route
+- node transitions
+- outputs
+- errors
 
----
 
-## 7. API Layer
+------------------------------------------------------------
+8. API Layer
 
-`api.py` exposes the cognitive graph through a REST interface.
+api.py exposes the cognitive graph through a REST interface.
 
 Example request:
 
-```bash
 curl -X POST http://localhost:8000/deepthought-graph \
 -H "Content-Type: application/json" \
 -d '{"input": "hello"}'
-```
 
 The API executes the same graph as the interactive mode.
 
----
 
-## 8. Local LLM Configuration
+------------------------------------------------------------
+9. Local LLM Configuration
 
-The `Modelfile` defines:
-- model path,
-- inference parameters,
-- runtime configuration.
+The Modelfile defines:
+- model path
+- inference parameters
+- runtime configuration
 
 This enables fully offline operation.
 
----
 
-## 9. Environment
+------------------------------------------------------------
+10. Environment
 
-Deepthought runs inside a Python 3.12 virtual environment:
+DeepThought runs inside a Python virtual environment:
 
-```
 venv/
-```
 
 Dependencies are defined in:
 
-```
 requirements.txt
-```
 
----
 
-## 10. Architecture Diagram
+------------------------------------------------------------
+11. Architecture Diagram (Conceptual)
 
-```
-                ┌────────────────────┐
-                │      main.py       │
-                │  Orchestrator      │
-                └─────────┬──────────┘
-                          │
-                          ▼
-                ┌────────────────────┐
-                │   load_memory      │
-                └─────────┬──────────┘
-                          │
-                          ▼
-                ┌────────────────────┐
-                │      router        │
-                └─────────┬──────────┘
-        ┌──────────────────┼──────────────────┐
-        ▼                  ▼                  ▼
-┌────────────┐     ┌────────────┐     ┌────────────┐
-│    llm     │     │  analysis  │     │ summarizer │
-└────────────┘     └────────────┘     └────────────┘
-        │                  │                  │
-        └──────────┬──────┴──────┬───────────┘
-                   ▼             ▼
-            ┌────────────┐  ┌────────────┐
-            │  command    │  │   other    │
-            └────────────┘  └────────────┘
-```
+main.py
+  |
+  v
+load_memory
+  |
+  v
+router
+  |
+  +--> llm
+  |
+  +--> analysis
+  |
+  +--> summarizer
+  |
+  +--> command
+  |
+  +--> tools
 
----
 
-## 11. System Status (Verified)
+------------------------------------------------------------
+12. Recovery Assumptions
 
-- Graph functional.
-- Router operational.
-- Memory loading and saving correctly.
-- API available.
-- No duplicate directories.
-- No broken paths.
-- VHDX is the single source of truth.
+A valid recovery must satisfy:
+- Python environment installs requirements successfully
+- python main.py starts without exceptions
+- tools_node executes tools via tool_call contract
+- memory can be restored from memory_v2_clean.json
 
----
 
-## 12. Maintenance Notes
+------------------------------------------------------------
+13. Stability Notice
 
-- `runs/` and `api_runs/` can be safely cleared.
-- `venv/` should not be deleted.
-- `memory_v2_clean.json` must remain in project root.
-- `app/graph.py` is the core of the cognitive system.
+This document reflects the system state as of v1.1-stable.
 
+Any future changes must be evaluated against this baseline.

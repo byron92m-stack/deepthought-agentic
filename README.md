@@ -1,125 +1,187 @@
-AI Engineer | Agentic Systems Architect | LLM Orchestration | LangGraph & Ollama | Backend & Workflow Architecture | Open to Work
+DeepThought — Agentic Orchestrator (v1.1)
 
-deepthought-agentic  
-Minimal, stable architecture for a local cognitive agent built with Ollama, LangGraph, and FastAPI. This repository contains the v1.0 stable, clean, and reproducible version of deepthought: a local cognitive agent designed with strict modularity, deterministic behavior, and a clear executive identity. It integrates a custom Ollama model, a minimal LangGraph cognitive flow, and a FastAPI interface for orchestration. This version serves as the foundation for the upcoming full cognitive graph and, later, a multi-agent swarm with a director-level orchestrator (CEO–CTO–Chief Architect–PM) supervising specialized executor agents.
+DeepThought is a local-first agentic orchestration system designed to act as a
+cognitive director for deterministic, auditable workflows.
 
-SUMMARY  
-deepthought-agentic is a modular, deterministic cognitive-agent architecture built on Ollama, LangGraph, and FastAPI. It defines a clear executive identity, a minimal but extensible cognitive graph, and a clean API layer for orchestration. The system is engineered as a stable foundation for advanced agentic workflows, including multi-node reasoning, memory, tool use, and future multi-agent swarms.  
-Tech Stack: Python · LangGraph · FastAPI · Ollama · LLM Orchestration · Cognitive Architecture · Agentic Systems
+It does not execute tasks autonomously.
+Instead, it routes, supervises, and coordinates specialized nodes under a strict
+operational contract.
 
-PROJECT PURPOSE  
-The goal of this project is to provide a local, deterministic cognitive agent with a reproducible identity, establish a minimal but extensible LangGraph architecture, expose a clean FastAPI interface for external orchestration, serve as a technical foundation for a future multi-agent swarm, and maintain strict modularity and operational clarity.
+This repository contains a reproducible v1.1-stable baseline validated end-to-end
+with a local LLM backend.
 
-SYSTEM ARCHITECTURE  
-Executive Identity — Modelfile  
-Defines the agent’s executive persona, operational rules, reasoning style, constraints, and deterministic activation. This ensures consistent behavior across sessions and environments.
+------------------------------------------------------------
 
-Cognitive Layer — app/graph.py  
-A minimal LangGraph implementation containing a single LLM node, a clean input → process → output flow, and a structure ready to expand into a full cognitive graph with memory, tools, and multi-node reasoning.
+What this is (and is not)
 
-API Layer — api.py  
-A FastAPI service exposing the endpoint POST /deepthought-graph. This endpoint allows external systems to send messages into the cognitive graph and receive structured responses.
+This is:
+- A LangGraph-based cognitive orchestrator
+- A local-first system (no cloud dependency required)
+- A deterministic and auditable controller for agentic workflows
+- A foundation for disciplined multi-node reasoning and tool execution
 
-Local Execution  
-main.py runs the graph directly, and run_local.py provides quick local testing.
+This is not:
+- A chatbot
+- An autonomous executor
+- A SaaS backend
+- A prompt playground
 
-Infrastructure  
-requirements.txt defines minimal dependencies, .gitignore excludes venv, logs, caches, and local runs, and api_runs/ and runs/ store local logs (not versioned).
+------------------------------------------------------------
 
-REPOSITORY STRUCTURE  
-agentic/  
-├── Modelfile  
-├── api.py  
-├── app/  
-│   ├── __init__.py  
-│   ├── graph.py  
-│   └── system_prompt.txt  
-├── main.py  
-├── requirements.txt  
-├── run_local.py  
-└── .gitignore
+Architecture (high level)
 
-```
-ARCHITECTURE DIAGRAM
-┌──────────────────────────────┐
-│          deepthought          │
-│     Executive Identity        │
-│          (Modelfile)          │
-└───────────────┬──────────────┘
-                │
-                ▼
-┌──────────────────────────────┐
-│        Cognitive Layer        │
-│        LangGraph Graph        │
-│   app/graph.py (LLM node)     │
-└───────────────┬──────────────┘
-                │
-                ▼
-┌──────────────────────────────┐
-│           API Layer           │
-│        FastAPI (api.py)       │
-│    POST /deepthought-graph    │
-└───────────────┬──────────────┘
-                │
-                ▼
-┌──────────────────────────────┐
-│        Local Execution        │
-│     main.py / run_local.py    │
-└───────────────┬──────────────┘
-                │
-                ▼
-┌──────────────────────────────┐
-│        Ollama Runtime         │
-│   Local LLM model execution   │
-└──────────────────────────────┘
-```
+Core layers:
+- Router layer
+  Selects exactly one next node under deterministic rules.
 
-Additional Local Components (not versioned):  
-- api_runs/ → API execution logs  
-- runs/     → Graph execution logs  
-- venv/     → Local Python environment
+- LLM layer
+  Performs reasoning and supervision only.
 
-RUNNING THE PROJECT  
-Install dependencies:  
-pip install -r requirements.txt  
+- Tools layer
+  Executes side-effectful actions under explicit contracts.
 
-Ensure Ollama is running:  
-ollama serve  
+- Memory layer
+  Explicit, versioned, and sanitized state.
 
-Build the model:  
-ollama create deepthought -f Modelfile  
+Formal documentation:
+- SYSTEM_DESIGN.md
+- ARCHITECTURE.md
+- NODE_CONTRACTS.md
+- ROUTER_RULES.md
+- MEMORY_MODEL.md
+- PROMPT_DESIGN.md
 
-Run the cognitive graph:  
-python main.py  
+------------------------------------------------------------
 
-Start the API:  
-uvicorn api:app --reload --port 8000  
+Baseline and Stability
 
-Test the endpoint:  
-curl -X POST http://localhost:8000/deepthought-graph -H "Content-Type: application/json" -d '{"input": "Hello deepthought"}'
+This repository represents the v1.1-stable baseline.
 
-ROADMAP  
-v1.1 — Full Cognitive Graph  
-Multi-node reasoning, memory integration, tool use, and advanced control flow.  
+Frozen elements:
+- Graph structure and node roles
+- Tool invocation via explicit tool_call
+- Memory loading discipline
+- Router decision flow
 
-v2.0 — Multi-Agent Swarm  
-Executive director agent, specialized executor agents, internal evaluation loops, and dynamic orchestration.  
+Out of scope for this baseline:
+- Experimental integrations
+- Cloud services
+- Non-local inference backends
 
-v3.0 — Integrations  
-ETL pipelines, trading systems, monitoring agents, and a local GUI.
+------------------------------------------------------------
 
-PROJECT PHILOSOPHY  
-Determinism first: reproducible behavior across runs.  
-Strict modularity: identity, cognition, and exposure remain separate.  
-Scalable design: minimal core, expandable architecture.  
-Operational clarity: no contamination, no ambiguity, no hidden state.
+Requirements
 
-ABOUT  
-I design and build modular agentic AI systems with a strong focus on deterministic behavior, cognitive architecture, and workflow orchestration. My work blends LLM engineering, backend architecture, and systems design, creating agents that are reproducible, interpretable, and ready for real-world integration. My recent projects include deepthought-agentic, a local cognitive-agent architecture built with Ollama, LangGraph, and FastAPI. It defines a clear executive identity, a minimal but extensible cognitive graph, and a clean API layer for orchestration. The system is engineered as a foundation for multi-agent swarms, autonomous workflows, and advanced reasoning pipelines. I bring a rigorous approach to modularity, operational clarity, and reproducibility, ensuring that every component—from identity to cognition to exposure—remains cleanly separated and scalable. I thrive in environments where architecture, reasoning, and engineering intersect. 
+System:
+- Linux / macOS / WSL2
+- Python 3.10+
+- Git
 
-ABOUT ME 
-I am a systems architect specializing in modular agentic AI, workflow orchestration, and deterministic cognitive design. I am currently Open to Work and actively seeking roles in AI Engineering, Agentic Systems, LLM Orchestration, Backend Architecture, Distributed Systems, and ML Pipelines.  
-Contact:  
-Email: byron92m@gmail.com  
-GitHub: https://github.com/byron92m-stack  
-(open to remote roles worldwide)
+LLM backend:
+- Ollama (local inference)
+
+------------------------------------------------------------
+
+Install Ollama
+
+If Ollama is not installed (Linux / WSL):
+
+curl -fsSL https://ollama.com/install.sh | sh
+
+Ensure the Ollama service is running before starting DeepThought.
+
+------------------------------------------------------------
+
+Setup
+
+Clone the repository:
+
+git clone <repository-url>
+cd agenticai
+
+Create and activate a virtual environment:
+
+python -m venv venv
+source venv/bin/activate
+
+Install dependencies:
+
+pip install -r requirements.txt
+
+------------------------------------------------------------
+
+Local LLM Setup
+
+Build the local model defined in Modelfile:
+
+ollama create deepthought -f Modelfile
+
+------------------------------------------------------------
+
+Run the System
+
+Start the interactive orchestrator:
+
+python main.py
+
+The system will:
+- load baseline memory
+- initialize the cognitive graph
+- enter the interactive loop
+
+------------------------------------------------------------
+
+Testing
+
+Core tests (must pass for a valid recovery):
+- test_tools_node.py
+
+Experimental tests (not part of baseline):
+- test_autogen.py
+
+------------------------------------------------------------
+
+Memory and Recovery
+
+Baseline memory snapshot:
+- memory_v2_clean.json
+
+Memory is loaded explicitly at startup.
+Persistence behavior depends on runtime configuration.
+
+For recovery, the baseline memory snapshot is sufficient.
+
+------------------------------------------------------------
+
+API (Optional)
+
+The cognitive graph can be exposed via a REST API.
+
+Example request:
+
+curl -X POST http://localhost:8000/deepthought-graph \
+-H "Content-Type: application/json" \
+-d '{"input": "hello"}'
+
+The API executes the same graph as interactive mode.
+
+------------------------------------------------------------
+
+Project Philosophy
+
+- Determinism first
+- Explicit state and transitions
+- No hidden execution
+- No implicit tool use
+- Clear separation of reasoning and action
+
+------------------------------------------------------------
+
+Status
+
+- Graph functional
+- Router operational
+- Tools node operational
+- Memory baseline stable
+- Local inference verified
+- Repository is the single source of truth
