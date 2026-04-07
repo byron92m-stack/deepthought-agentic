@@ -1,14 +1,22 @@
 from app.nodes.tools_node import tools_node
 
+
 def probar(tool_name, tool_args):
+    # Estado mínimo válido esperado por tools_node
     state = {
-        "tool_name": tool_name,
-        "tool_args": tool_args,
+        "messages": [],
+        "tool_call": {
+            "name": tool_name,
+            "args": tool_args,
+        },
     }
+
     result = tools_node(state)
+
     print(f"\n=== {tool_name} ===")
     print("state_in:", state)
     print("state_out:", result)
+
 
 def main():
     # 1) Probar leer_archivo (asegúrate de que exista data/test.txt)
@@ -22,6 +30,7 @@ def main():
 
     # 4) Probar calcular_balance
     probar("calcular_balance", {})
+
 
 if __name__ == "__main__":
     main()
