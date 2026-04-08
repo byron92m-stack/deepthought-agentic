@@ -1,170 +1,259 @@
-# Deepthought — Memory Model (v1.1)
+DeepThought — Memory Model (v2.0)
 
-## 1. Purpose of the Memory System
-Deepthought uses a persistent memory model to maintain continuity across sessions. Memory enables:
+------------------------------------------------------------
+1. Purpose of the Memory System
 
-- long-term context retention,
-- user profile persistence,
-- stateful reasoning,
-- reproducible behavior,
-- auditability.
+DeepThought v2.0 uses an explicit, deterministic memory model to maintain continuity,
+auditability, and reproducibility across sessions.
+
+Memory enables:
+- short-term conversational continuity,
+- long-term contextual retention,
+- stable user/system profiling,
+- deterministic routing and execution,
+- full auditability and recovery.
 
 Memory is stored in:
 
-```
 memory_v2_clean.json
-```
 
----
+This file is the authoritative baseline for recovery.
 
-## 2. Memory Structure
+------------------------------------------------------------
+2. Memory Architecture (v2.0)
 
-### 2.1 Top-Level Fields
-The memory file contains:
+Memory in v2.0 is hybrid and segmented. It is not a monolithic log.
 
-- **messages** — chronological conversation history.
-- **profile** — persistent user identity and preferences.
-- **system_state** — internal state of the graph.
-- **metadata** — versioning and integrity fields.
+The memory system is composed of:
+- short_term memory
+- long_term memory
+- profile memory
+- memory metadata
 
----
+Memory is:
+- loaded explicitly at startup,
+- managed deterministically,
+- persisted explicitly,
+- never mutated implicitly by agents or nodes.
 
-## 3. Message Model
+------------------------------------------------------------
+3. Memory Structure
 
-Each message entry contains:
+3.1 Top-Level Fields
 
-- `role` — `human` or `assistant`.
-- `content` — full text of the message.
-- `timestamp` — ISO timestamp.
-- `node` — which agent produced the message.
-- `context_window` — optional context snapshot.
+The memory file contains the following top-level fields:
+
+- messages  
+  Canonical conversation history (sanitized).
+
+- profile  
+  Persistent user/system profile.
+
+- memory_meta  
+  Metadata describing memory versioning and state.
+
+No other top-level fields are allowed in the v2.0 baseline.
+
+------------------------------------------------------------
+4. Message Model
+
+Each message entry represents a user-visible interaction.
+
+Required fields:
+- role        — "human" or "assistant"
+- content     — full text content
+- timestamp   — ISO 8601 timestamp
+- source      — node or agent that produced the message
+
+Optional fields:
+- agent       — agent name (if produced by an agent)
+- route       — routing path taken
+- context_id  — optional execution context identifier
 
 Example:
 
-```json
 {
   "role": "assistant",
-  "content": "1. Objective: Respond to user greeting...",
-  "timestamp": "2026-03-20T14:06:00",
-  "node": "llm"
+  "content": "ResearchAgent recibió la tarea. Modo stub activo.",
+  "timestamp": "2026-04-08T21:07:13",
+  "source": "agent_executor",
+  "agent": "research_agent"
 }
-```
 
----
+------------------------------------------------------------
+5. Profile Model (Layer 3)
 
-## 4. Profile Model
+The profile stores stable user/system information.
 
-The profile stores long-term user information:
-
-- name,
-- preferences,
-- system settings,
-- persistent traits.
+Typical fields:
+- user.name
+- user.language
+- user.preferences
+- system.version
+- system.constraints
 
 Example:
 
-```json
 {
-  "name": "Byron",
-  "language": "es",
-  "style": "technical"
+  "user": {
+    "name": "Byron",
+    "language": "es",
+    "style": "technical"
+  },
+  "system": {
+    "version": "2.0"
+  }
 }
-```
 
-The profile is loaded once at startup and reused.
+Profile rules:
+- Loaded once at startup.
+- Must not be overwritten if already present.
+- May only be modified explicitly by authorized logic.
+- Treated as read-only by agents.
 
----
+------------------------------------------------------------
+6. Memory Metadata (memory_meta)
 
-## 5. System State Model
+memory_meta tracks the internal state of memory management.
 
-Tracks:
+Typical fields:
+- version
+- last_update
+- short_term_size
+- long_term_size
 
-- last node executed,
-- pending tasks,
-- internal flags,
-- memory version.
+Example:
 
-This ensures deterministic graph execution.
+{
+  "version": "2.0",
+  "last_update": "2026-04-08T21:07:13.721754",
+  "short_term_size": 8,
+  "long_term_size": 0
+}
 
----
+memory_meta is maintained exclusively by memory_manager.
 
-## 6. Memory Lifecycle
+------------------------------------------------------------
+7. Memory Lifecycle
 
-### 6.1 Load Phase
+7.1 Load Phase
+
 At startup:
-
-1. `memory_v2_clean.json` is read.
-2. Messages are injected into graph state.
-3. Profile is loaded.
-4. System state is restored.
+1) memory_v2_clean.json is read.
+2) Memory is validated and sanitized.
+3) Messages are injected into graph state.
+4) Profile is initialized (if missing).
+5) memory_meta is loaded or initialized.
 
 Log evidence:
+- "Memory loaded correctly"
+- "profile.user already exists, not modified."
 
-```
-Memory loaded correctly
-profile.user already exists, not modified.
-```
+------------------------------------------------------------
 
-### 6.2 Update Phase
-After each interaction:
+7.2 Update Phase
 
-- new messages are appended,
-- system state is updated,
-- profile may be modified.
+After each user-visible output:
+- new messages are appended to state,
+- no memory is persisted yet,
+- agents and nodes do not mutate memory directly.
 
-### 6.3 Save Phase
-Memory is written back to disk:
+------------------------------------------------------------
 
-```
-MEMORY SAVED — 20 mensajes guardados
-```
+7.3 Management Phase (memory_manager)
 
----
+memory_manager:
+- applies deterministic trimming rules,
+- enforces segmentation (short_term / long_term),
+- sanitizes invalid entries,
+- updates memory_meta.
 
-## 7. Memory Integrity Rules
+No LLM is used for trimming or summarization.
+
+------------------------------------------------------------
+
+7.4 Save Phase (memory_writer)
+
+memory_writer:
+- persists memory explicitly to disk,
+- logs success or failure,
+- does not modify memory content.
+
+Example log:
+- "MEMORY SAVED — 8 mensajes guardados"
+
+------------------------------------------------------------
+8. Memory Integrity Rules
 
 - Memory must always be valid JSON.
-- Only the orchestrator may write to memory.
-- Nodes must not mutate memory directly.
-- Memory must not exceed the context window limit.
-- Corrupted memory must trigger a reset.
+- Memory must conform to the v2.0 schema.
+- Only memory_manager may modify memory content.
+- Only memory_writer may persist memory.
+- Agents must never mutate memory directly.
+- Router must never mutate memory.
+- Corrupted memory must be sanitized, not trusted.
 
----
-
-## 8. Memory Reset Procedure
+------------------------------------------------------------
+9. Memory Reset Procedure
 
 If memory becomes corrupted:
 
-1. Backup the file.
-2. Create a new empty structure:
-```json
+1) Backup memory_v2_clean.json.
+2) Create a minimal valid structure:
+
 {
   "messages": [],
   "profile": {},
-  "system_state": {}
+  "memory_meta": {
+    "version": "2.0",
+    "short_term_size": 0,
+    "long_term_size": 0
+  }
 }
-```
-3. Restart deepthought.
 
----
+3) Restart DeepThought.
 
-## 9. Extending the Memory Model
+------------------------------------------------------------
+10. Extending the Memory Model
 
-To add new fields:
+To extend memory safely:
 
-1. Add schema changes to the orchestrator.
-2. Update load/save logic.
-3. Document the new field here.
-4. Ensure backward compatibility.
+1) Update the memory schema explicitly.
+2) Update load and validation logic.
+3) Update memory_manager rules.
+4) Document the change in this file.
+5) Preserve backward compatibility where possible.
 
----
+------------------------------------------------------------
+11. Determinism Guarantees
 
-## 10. Verified Status
+The memory system guarantees:
+- deterministic load behavior,
+- deterministic trimming,
+- deterministic persistence,
+- reproducible recovery,
+- full auditability.
+
+------------------------------------------------------------
+12. Verified Status (v2.0)
 
 Memory is fully operational:
-
 - loads correctly,
-- saves correctly,
-- integrates with the graph,
-- persists across sessions.
+- managed deterministically,
+- persists correctly,
+- integrates with multi-agent routing,
+- survives restarts,
+- supports full recovery.
 
+------------------------------------------------------------
+13. Stability Notice
+
+This document reflects the system state as of v2.0-stable.
+
+The following elements are considered frozen for the v2.0 baseline:
+- memory schema
+- memory lifecycle
+- memory_manager + memory_writer responsibilities
+- deterministic trimming policy
+
+Any future changes must be evaluated against this baseline.

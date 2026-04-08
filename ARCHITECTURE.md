@@ -1,16 +1,18 @@
-DeepThought — Cognitive Graph Architecture (v1.1)
+DeepThought — Cognitive Graph Architecture (v2.0)
 
+------------------------------------------------------------
 1. Overview
 
-DeepThought is a local-first cognitive graph system designed for deterministic,
-auditable orchestration of reasoning and controlled execution.
+DeepThought v2.0 is a local-first cognitive orchestration system designed for
+deterministic, auditable multi-agent workflows.
 
-The system runs fully offline and is executed from:
+The system runs fully offline and is executed from the repository root.
+This directory is the single source of truth for recovery, auditability,
+and reproducible operation.
 
-/home/nw/agenticai
-
-This directory is the single source of truth for recovery and operation.
-
+Version v2.0 introduces a multi-agent execution layer while preserving the
+core architectural principles of v1.x:
+explicit routing, explicit contracts, and no hidden execution.
 
 ------------------------------------------------------------
 2. Project Structure
@@ -18,12 +20,28 @@ This directory is the single source of truth for recovery and operation.
 agenticai/
 ├── Modelfile
 ├── README.md
+├── SYSTEM_DESIGN.md
+├── ARCHITECTURE.md
+├── NODE_CONTRACTS.md
+├── ROUTER_RULES.md
+├── MEMORY_MODEL.md
+├── PROMPT_DESIGN.md
 ├── api.py
 ├── api_runs/
 ├── app/
 │   ├── __init__.py
 │   ├── graph.py
 │   └── nodes/
+├── agents/
+│   ├── base_agent.py
+│   ├── support_agent.py
+│   ├── sales_agent.py
+│   ├── research_agent.py
+│   ├── tools_agent.py
+│   ├── finance_agent.py
+│   ├── marketing_agent.py
+│   ├── prompts/
+│   └── contracts/
 ├── main.py
 ├── memory_v2_clean.json
 ├── requirements.txt
@@ -32,33 +50,32 @@ agenticai/
 
 Component roles:
 
-- main.py
+- main.py  
   Entry point and interactive orchestrator loop.
 
-- app/graph.py
+- app/graph.py  
   Cognitive graph definition and node wiring.
 
-- app/nodes/
-  Node implementations (router, llm, analysis, tools, etc.).
+- app/nodes/  
+  Node implementations (router, agent_router, agent_executor, memory_manager, etc.).
 
-- memory_v2_clean.json
+- agents/  
+  Specialized agent implementations with explicit contracts.
+
+- memory_v2_clean.json  
   Baseline sanitized memory snapshot used for recovery.
 
-- api.py
+- api.py  
   Optional REST API interface.
 
-- runs/
+- runs/  
   Logs for interactive executions.
 
-- api_runs/
+- api_runs/  
   Logs for API executions.
 
-- venv/
-  Isolated Python environment.
-
-- Modelfile
+- Modelfile  
   Local LLM configuration for offline inference.
-
 
 ------------------------------------------------------------
 3. Execution Flow
@@ -67,133 +84,149 @@ Component roles:
 
 1) Load persistent memory via load_memory node.
 2) Initialize graph state.
-3) Initialize cognitive graph.
-4) Enter interactive loop or API mode.
+3) Initialize user/system profile (profile_initializer).
+4) Initialize cognitive graph.
+5) Enter interactive loop or API mode.
 
-3.2 Interaction cycle
+3.2 Interaction cycle (v2.0)
 
 1) User provides input.
 2) Router analyzes intent.
-3) Router selects exactly one next node.
-4) Selected node executes.
-5) Output is appended to state["messages"].
-6) Control returns to router.
-
+3) Router selects exactly one path:
+   - summarizer
+   - memory_query
+   - agent pipeline
+4) If agent pipeline:
+   - agent_router selects exactly one agent
+   - agent_executor executes the agent
+5) Output is appended to state.
+6) memory_manager applies deterministic memory rules.
+7) memory_writer persists memory if configured.
+8) Control returns to router.
 
 ------------------------------------------------------------
 4. Cognitive Graph
 
 The graph is defined in app/graph.py.
 
-4.1 Nodes
+4.1 Nodes (v2.0)
 
-- load_memory
-  Loads memory into graph state.
+- load_memory  
+  Loads persistent memory into graph state.
 
-- router
-  Selects the appropriate next node based on intent.
+- profile_initializer  
+  Ensures a stable user/system profile exists.
 
-- llm
-  General-purpose technical reasoning.
+- router  
+  Selects the next execution path deterministically.
 
+- summarizer  
+  Produces executive summaries.
+
+- memory_query  
+  Answers explicit memory queries.
+
+- agent_router  
+  Selects exactly one agent based on deterministic intent rules.
+
+- agent_executor  
+  Executes the selected agent and returns structured output.
+
+- memory_manager  
+  Applies deterministic memory trimming and sanitization.
+
+- memory_writer  
+  Persists memory updates explicitly.
+
+Nodes removed since v1.1:
+- llm (generic)
 - analysis
-  Structured deterministic reasoning.
-
-- summarizer
-  Executive summaries.
-
 - command
-  Technical command explanations.
+- tools (direct execution)
 
-- tools
-  Controlled execution of side-effectful actions.
-
-
-4.2 Router behavior
-
-The router evaluates:
-- user intent
-- linguistic patterns
-- memory context
-- system state
-
-It must:
-- select exactly one valid node
-- never execute tools directly
-- never modify memory
-
+All reasoning and coordination now occurs through agents.
 
 ------------------------------------------------------------
-5. Tool Execution Layer (Critical)
+5. Multi-Agent Layer (Critical)
 
-All side-effectful actions are executed exclusively through the tools node.
+Agents are first-class execution units in v2.0.
 
-Tool execution is requested via an explicit tool_call object in the graph state:
+Agents included in the baseline:
+- support_agent
+- sales_agent
+- research_agent
+- tools_agent
+- finance_agent
+- marketing_agent
 
-state["tool_call"] = {
-    "name": "<tool_name>",
-    "args": {...}
-}
+Each agent:
+- has a defined role and capabilities,
+- receives (task, context),
+- returns a structured dict,
+- must respect explicit constraints.
 
-The tools node:
-- executes the tool via the tool registry
-- writes formatted output to state["output"]
-- appends output to state["messages"]
+Agents do not mutate memory directly.
+Agents do not execute side effects implicitly.
 
-Direct tool execution from LLM or router nodes is forbidden.
+------------------------------------------------------------
+6. Tools Coordination
 
-This guarantees:
-- deterministic execution
-- auditable state transitions
+DeepThought v2.0 forbids implicit tool execution.
+
+- Tool decisions are coordinated by tools_agent.
+- Any side-effectful action must be explicit and auditable.
+- No agent or node may execute tools directly without an explicit contract.
+
+This preserves:
+- determinism
+- auditability
 - separation of reasoning and action
 
-
 ------------------------------------------------------------
-6. Memory System
+7. Memory System (v2)
 
-6.1 Persistent memory
+7.1 Persistent memory
 
-Baseline memory snapshot:
-
+Baseline snapshot:
 memory_v2_clean.json
 
 Memory is:
-- loaded explicitly at startup
-- injected into graph state
-- updated in memory state during execution
+- loaded explicitly at startup,
+- injected into graph state,
+- updated only via memory_manager and memory_writer.
 
-Persistence behavior depends on runtime configuration.
+7.2 Hybrid memory model
 
-6.2 Profile
+Memory segments:
+- short_term
+- long_term
+- profile
 
-A persistent user profile may be created at runtime and reused across sessions.
-
+Trimming and sanitization are deterministic and reproducible.
 
 ------------------------------------------------------------
-7. Logging System
+8. Logging System
 
-7.1 Interactive logs
+8.1 Interactive logs
 
 Stored in:
-
 runs/
 
-7.2 API logs
+8.2 API logs
 
 Stored in:
-
 api_runs/
 
 Logs may include:
 - input
 - selected route
+- selected agent
 - node transitions
 - outputs
 - errors
 
-
 ------------------------------------------------------------
-8. API Layer
+9. API Layer
 
 api.py exposes the cognitive graph through a REST interface.
 
@@ -203,31 +236,17 @@ curl -X POST http://localhost:8000/deepthought-graph \
 -H "Content-Type: application/json" \
 -d '{"input": "hello"}'
 
-The API executes the same graph as the interactive mode.
-
+The API executes the same graph as interactive mode.
 
 ------------------------------------------------------------
-9. Local LLM Configuration
+10. Local LLM Configuration
 
 The Modelfile defines:
 - model path
 - inference parameters
 - runtime configuration
 
-This enables fully offline operation.
-
-
-------------------------------------------------------------
-10. Environment
-
-DeepThought runs inside a Python virtual environment:
-
-venv/
-
-Dependencies are defined in:
-
-requirements.txt
-
+This enables fully offline and reproducible inference.
 
 ------------------------------------------------------------
 11. Architecture Diagram (Conceptual)
@@ -238,18 +257,25 @@ main.py
 load_memory
   |
   v
+profile_initializer
+  |
+  v
 router
-  |
-  +--> llm
-  |
-  +--> analysis
   |
   +--> summarizer
   |
-  +--> command
+  +--> memory_query
   |
-  +--> tools
-
+  +--> agent_router
+           |
+           v
+      agent_executor
+           |
+           v
+      memory_manager
+           |
+           v
+      memory_writer
 
 ------------------------------------------------------------
 12. Recovery Assumptions
@@ -257,13 +283,12 @@ router
 A valid recovery must satisfy:
 - Python environment installs requirements successfully
 - python main.py starts without exceptions
-- tools_node executes tools via tool_call contract
+- agent routing behaves deterministically
 - memory can be restored from memory_v2_clean.json
-
 
 ------------------------------------------------------------
 13. Stability Notice
 
-This document reflects the system state as of v1.1-stable.
+This document reflects the system state as of v2.0-stable.
 
 Any future changes must be evaluated against this baseline.

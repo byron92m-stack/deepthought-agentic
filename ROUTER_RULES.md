@@ -1,151 +1,224 @@
-# Deepthought — Router Rules (v1.1)
+DeepThought — Router Rules (v2.0)
 
-## 1. Purpose of the Router
-The router is the central decision-making component of the cognitive graph. Its role is to analyze user input, evaluate context, and select the correct agent (node) to handle the request. The router ensures deterministic, predictable behavior and prevents ambiguous or overlapping cognitive actions.
+------------------------------------------------------------
+1. Purpose of the Router
 
----
+The router is the central decision-making component of the DeepThought v2.0 cognitive graph.
 
-## 2. Router Responsibilities
-- Classify user intent.
-- Select the appropriate cognitive agent.
-- Enforce deterministic transitions.
-- Prevent invalid or ambiguous node execution.
-- Maintain cognitive discipline across the graph.
-- Ensure that each node receives the correct type of input.
+Its role is to analyze user input, evaluate context, and select the correct execution
+path under deterministic rules.
 
----
+In v2.0, routing is split into two explicit stages:
+- router (path selection)
+- agent_router (agent selection)
 
-## 3. Router Inputs
-The router evaluates four sources of information:
+This separation ensures clarity, auditability, and strict cognitive discipline.
 
-### 3.1 User Input
-- keywords,
-- linguistic patterns,
-- command-like structures,
-- question types,
-- tone and intent.
+------------------------------------------------------------
+2. Router Responsibilities
 
-### 3.2 Memory Context
-- recent conversation history,
-- user profile,
-- system state.
+The router is responsible for:
+- Classifying high-level user intent.
+- Selecting exactly one valid execution path.
+- Enforcing deterministic transitions.
+- Preventing ambiguous or overlapping execution.
+- Never executing reasoning, agents, or tools directly.
+- Never modifying memory.
 
-### 3.3 Graph State
-- previous node,
-- pending tasks,
-- unresolved outputs.
+The router does NOT:
+- Select agents directly.
+- Execute tools.
+- Perform reasoning.
+- Mutate state beyond route selection.
 
-### 3.4 System Rules
-- explicit routing rules defined in `graph.py`.
+------------------------------------------------------------
+3. Router Inputs
 
----
+The router evaluates the following inputs:
 
-## 4. Routing Logic
+3.1 User Input
+- keywords
+- linguistic patterns
+- explicit requests (e.g., “resume”, “qué recuerdas”)
+- intent markers
 
-### 4.1 Agent Selection Rules
+3.2 Memory Context
+- recent conversation history
+- memory metadata (sizes, version)
+- user/system profile (read-only)
 
-#### **Rule: analysis**
-Triggered when input requires structured reasoning:
-- “analyze…”
-- “explain the problem…”
-- “what are the risks…”
-- “give me scenarios…”
-- “root cause…”
+3.3 Graph State
+- previous node
+- current execution phase
 
-#### **Rule: summarizer**
-Triggered when input requests condensation:
-- “summarize…”
-- “give me a short version…”
-- “executive summary…”
+3.4 System Rules
+- explicit routing rules defined in graph.py
+- no probabilistic or heuristic routing
 
-#### **Rule: command**
-Triggered when input references:
-- shell commands,
-- code,
-- technical instructions,
-- CLI usage,
-- file paths.
+------------------------------------------------------------
+4. Routing Logic (v2.0)
+
+The router selects exactly one of the following paths:
+
+- summarizer
+- memory_query
+- agent_router
+
+No other routes are valid in v2.0.
+
+------------------------------------------------------------
+5. Routing Rules
+
+5.1 Rule: summarizer
+
+Triggered when the user explicitly requests condensation or summarization.
 
 Examples:
-- “what does this command do?”
-- “explain this error”
-- “how do I run…”
+- “resume…”
+- “haz un resumen…”
+- “summary…”
+- “resumir conversación…”
 
-#### **Rule: llm**
-Default fallback for:
-- greetings,
-- general questions,
-- open-ended prompts,
-- conversational input.
+Output:
+- Next node: summarizer
 
-#### **Rule: load_memory**
-Executed only at startup.
+------------------------------------------------------------
 
----
+5.2 Rule: memory_query
 
-## 5. Deterministic Priority Order
-When multiple rules match, the router applies this priority:
+Triggered when the user explicitly asks about stored memory or prior context.
 
-1. **command**  
-2. **analysis**  
-3. **summarizer**  
-4. **llm**
+Examples:
+- “qué recuerdas”
+- “que recuerdas”
+- “memoria”
+- “memory”
+- “últimos mensajes”
 
-This prevents ambiguity and ensures consistent behavior.
+Output:
+- Next node: memory_query
 
----
+------------------------------------------------------------
 
-## 6. Invalid Transitions
-The router prevents:
-- loops between nodes,
-- recursive agent calls,
-- transitions that bypass the router,
-- nodes calling each other directly.
+5.3 Rule: agent_pipeline (default)
 
-All transitions must return to the router unless explicitly defined.
+Triggered for all other valid inputs.
 
----
+This includes:
+- analysis requests
+- research requests
+- commands
+- financial questions
+- marketing requests
+- general problem solving
+- greetings
+- open-ended prompts
 
-## 7. Output Contract
-Each agent must return:
-- a structured output,
-- a clear message,
-- no side effects outside its scope.
+Output:
+- Next node: agent_router
 
-The router validates:
-- output format,
-- completeness,
-- next node.
+This rule is the default fallback and guarantees that all meaningful work
+is handled by specialized agents.
 
----
+------------------------------------------------------------
+6. Deterministic Priority Order
 
-## 8. Extending Router Rules
-To add a new rule:
+When multiple rules match, the router applies the following priority:
 
-1. Define a new agent node.
-2. Add a routing condition in `graph.py`.
-3. Ensure the rule is deterministic.
-4. Document the rule in this file.
-5. Validate that no existing rule overlaps.
+1. memory_query
+2. summarizer
+3. agent_router (default)
 
----
+This order is fixed and must not be changed without documentation.
 
-## 9. Router Stability Guarantees
-- deterministic selection,
-- reproducible behavior,
-- no hidden heuristics,
-- no probabilistic routing,
-- no agent overlap.
+------------------------------------------------------------
+7. Agent Router Responsibilities (Context)
 
----
+The agent_router is a separate node and is NOT part of the router.
 
-## 10. Verified Status
-The router is fully operational and validated through logs:
+Its responsibilities include:
+- Selecting exactly one agent.
+- Applying deterministic intent-to-agent rules.
+- Writing state["agent_name"].
+- Logging the selection.
 
-```
-Selected route: llm
-Selected route: analysis
-Selected route: summarizer
-Selected route: command
-```
+The router must never bypass the agent_router.
 
+------------------------------------------------------------
+8. Invalid Transitions
+
+The router explicitly prevents:
+- Direct execution of agents.
+- Direct execution of tools.
+- Nodes calling each other directly.
+- Recursive routing loops.
+- Skipping memory management stages.
+
+All valid execution paths must return control to the router or terminate
+through memory_writer.
+
+------------------------------------------------------------
+9. Output Contract
+
+The router must:
+- Return exactly one valid next node.
+- Produce no user-facing output.
+- Leave memory untouched.
+- Leave agent selection untouched.
+
+Any deviation is considered a contract violation.
+
+------------------------------------------------------------
+10. Extending Router Rules
+
+To add or modify router rules:
+
+1) Update routing logic in graph.py.
+2) Ensure the rule is deterministic.
+3) Ensure it does not overlap existing rules ambiguously.
+4) Document the change in this file.
+5) Validate behavior through logs.
+
+------------------------------------------------------------
+11. Router Stability Guarantees
+
+The router guarantees:
+- Deterministic selection.
+- Reproducible behavior.
+- No hidden heuristics.
+- No probabilistic routing.
+- No agent overlap.
+- No implicit execution.
+
+------------------------------------------------------------
+12. Verified Status (v2.0)
+
+The router has been validated through manual certification:
+
+- ResearchAgent routing
+- ToolsAgent routing
+- FinanceAgent routing
+- MarketingAgent routing
+- SupportAgent routing
+- SalesAgent routing
+
+Observed logs:
+- Selected agent: research_agent
+- Selected agent: tools_agent
+- Selected agent: finance_agent
+- Selected agent: marketing_agent
+- Selected agent: support_agent
+- Selected agent: sales_agent
+
+------------------------------------------------------------
+13. Stability Notice
+
+This document reflects the system state as of v2.0-stable.
+
+The following elements are considered frozen for the v2.0 baseline:
+- Router path selection rules
+- Deterministic priority order
+- Separation between router and agent_router
+- No implicit execution
+
+Any future changes must be evaluated against this baseline.

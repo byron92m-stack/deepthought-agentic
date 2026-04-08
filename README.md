@@ -1,13 +1,13 @@
-DeepThought — Agentic Orchestrator (v1.1)
+DeepThought — Multi‑Agent Cognitive Orchestrator (v2.0)
 
-DeepThought is a local-first agentic orchestration system designed to act as a
-cognitive director for deterministic, auditable workflows.
+DeepThought is a local-first cognitive orchestration system designed to act as a
+deterministic, auditable director for multi-agent workflows.
 
 It does not execute tasks autonomously.
-Instead, it routes, supervises, and coordinates specialized nodes under a strict
+Instead, it routes, supervises, and coordinates specialized agents and nodes under a strict
 operational contract.
 
-This repository contains a reproducible v1.1-stable baseline validated end-to-end
+This repository contains the reproducible v2.0 baseline validated end-to-end
 with a local LLM backend.
 
 ------------------------------------------------------------
@@ -18,6 +18,7 @@ This is:
 - A LangGraph-based cognitive orchestrator
 - A local-first system (no cloud dependency required)
 - A deterministic and auditable controller for agentic workflows
+- A multi-agent routing + execution layer (router + agent_router + agent_executor)
 - A foundation for disciplined multi-node reasoning and tool execution
 
 This is not:
@@ -34,14 +35,83 @@ Core layers:
 - Router layer
   Selects exactly one next node under deterministic rules.
 
+- Agent layer
+  Routes to exactly one specialized agent and executes it under an explicit contract.
+
 - LLM layer
-  Performs reasoning and supervision only.
+  Performs reasoning and supervision only (no hidden execution).
 
 - Tools layer
-  Executes side-effectful actions under explicit contracts.
+  Coordinates side-effectful actions under explicit contracts (no implicit tool use).
 
 - Memory layer
-  Explicit, versioned, and sanitized state.
+  Explicit, versioned, sanitized state with hybrid memory v2.
+
+Pipeline (v2.0):
+
+input
+  → load_memory
+  → profile_initializer
+  → router
+      → agent_router
+      → agent_executor
+  → memory_manager
+  → memory_writer
+  → output
+
+Graph (ASCII):
+
+                          ┌──────────────────────┐
+                          │      input text       │
+                          └──────────┬───────────┘
+                                     │
+                           ┌─────────▼─────────┐
+                           │    load_memory     │
+                           └─────────┬─────────┘
+                                     │
+                           ┌─────────▼─────────┐
+                           │ profile_initializer│
+                           └─────────┬─────────┘
+                                     │
+                           ┌─────────▼─────────┐
+                           │      router        │
+                           └─────────┬─────────┘
+                                     │
+                    ┌────────────────┴────────────────┐
+                    │                                 │
+          ┌─────────▼─────────┐             ┌────────▼────────┐
+          │   summarizer       │             │  memory_query    │
+          └─────────┬─────────┘             └────────┬────────┘
+                    │                                 │
+                    └─────────────────────────────────┘
+                                     │
+                           ┌─────────▼─────────┐
+                           │   agent_router     │
+                           └─────────┬─────────┘
+                                     │
+                           ┌─────────▼─────────┐
+                           │  agent_executor    │
+                           └─────────┬─────────┘
+                                     │
+                           ┌─────────▼─────────┐
+                           │  memory_manager    │
+                           └─────────┬─────────┘
+                                     │
+                           ┌─────────▼─────────┐
+                           │  memory_writer     │
+                           └─────────┬─────────┘
+                                     │
+                           ┌─────────▼─────────┐
+                           │      output        │
+                           └────────────────────┘
+
+Agents (v2.0):
+- support_agent   (Soporte técnico y operativo)
+- sales_agent     (Ventas y prospección)
+- research_agent  (Investigación y análisis)
+- tools_agent     (Coordinación de herramientas)
+- finance_agent   (Finanzas y análisis económico)
+- marketing_agent (Marketing y contenido)
 
 Formal documentation:
 - SYSTEM_DESIGN.md
@@ -55,18 +125,19 @@ Formal documentation:
 
 Baseline and Stability
 
-This repository represents the v1.1-stable baseline.
+This repository represents the v2.0-stable baseline.
 
-Frozen elements:
-- Graph structure and node roles
-- Tool invocation via explicit tool_call
-- Memory loading discipline
-- Router decision flow
+Frozen elements (v2.0 baseline):
+- Multi-agent routing flow (router → agent_router → agent_executor)
+- Agent contract interface (task + context → structured dict output)
+- Memory v2 discipline (explicit load, deterministic trimming policy, explicit persistence)
+- No implicit tool use (tools are coordinated under explicit contracts)
 
 Out of scope for this baseline:
 - Experimental integrations
 - Cloud services
 - Non-local inference backends
+- Autonomous execution without explicit tool contracts
 
 ------------------------------------------------------------
 
@@ -139,6 +210,20 @@ Core tests (must pass for a valid recovery):
 Experimental tests (not part of baseline):
 - test_autogen.py
 
+Manual certification (v2.0 agents):
+- support_agent:  "hola deepthought, tengo un problema con mi pipeline de ingest"
+- sales_agent:    "redacta un mensaje de prospección para un cliente B2B"
+- research_agent: "analiza el mercado de tarjetas cripto en LATAM"
+- tools_agent:    "dame un comando curl para hacer POST con JSON a esta URL: https://api.test.com/x"
+- finance_agent:  "calcula el pnl diario de este portafolio"
+- marketing_agent:"escribe un tweet promocionando un nuevo producto fintech"
+
+Expected behavior:
+- Selected agent: <agent_name>
+- agent_executor runs the agent
+- structured JSON output returned
+- memory_manager + memory_writer persist state
+
 ------------------------------------------------------------
 
 Memory and Recovery
@@ -179,9 +264,10 @@ Project Philosophy
 
 Status
 
-- Graph functional
-- Router operational
-- Tools node operational
-- Memory baseline stable
+- v2.0 certified
+- Multi-agent router operational
+- Agent executor operational
+- 6 agents operational (support/sales/research/tools/finance/marketing)
+- Memory v2 baseline stable
 - Local inference verified
 - Repository is the single source of truth
