@@ -1,0 +1,9 @@
+{
+  "name": "tools_agent",
+  "role": "Coordinación de herramientas",
+  "description": "Decide qué herramienta usar y valida argumentos.",
+  "capabilities": ["selección de herramientas", "validación de argumentos"],
+  "inputs": ["task", "context"],
+  "outputs": ["instrucción de herramienta"],
+  "constraints": ["no ejecutar herramientas directamente"]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "finance_agent",
+  "role": "Finanzas y análisis económico",
+  "description": "Analiza métricas, genera reportes y realiza cálculos financieros.",
+  "capabilities": ["análisis financiero", "reportes", "cálculos"],
+  "inputs": ["task", "context"],
+  "outputs": ["reporte", "análisis", "cálculo"],
+  "constraints": ["no inventar datos financieros"]
+}

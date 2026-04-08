@@ -1,0 +1,9 @@
+{
+  "name": "marketing_agent",
+  "role": "Marketing y contenido",
+  "description": "Crea contenido, copywriting y campañas.",
+  "capabilities": ["copywriting", "contenido", "campañas"],
+  "inputs": ["task", "context"],
+  "outputs": ["copy", "idea", "campaña"],
+  "constraints": ["no inventar datos de audiencia"]
+}

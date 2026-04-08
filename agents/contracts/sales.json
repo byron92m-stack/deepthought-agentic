@@ -1,0 +1,9 @@
+{
+  "name": "sales_agent",
+  "role": "Ventas y prospección",
+  "description": "Apoya en ventas, prospección y comunicación comercial.",
+  "capabilities": ["redacción comercial", "análisis de leads", "propuestas de venta"],
+  "inputs": ["task", "context"],
+  "outputs": ["mensaje comercial", "análisis", "propuesta"],
+  "constraints": ["no inventar datos de clientes"]
+}
