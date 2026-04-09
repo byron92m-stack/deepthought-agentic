@@ -11,6 +11,21 @@ from datetime import datetime
 from pathlib import Path
 from app.nodes.tools_node import tools_node
 from app.tool_contracts import TOOL_SCHEMAS
+from agents.research_agent import ResearchAgent
+from agents.finance_agent import FinanceAgent
+from agents.marketing_agent import MarketingAgent
+from agents.sales_agent import SalesAgent
+from agents.support_agent import SupportAgent
+from agents.tools_agent import ToolsAgent
+
+AGENT_REGISTRY = {
+    "research": ResearchAgent,
+    "finance": FinanceAgent,
+    "marketing": MarketingAgent,
+    "sales": SalesAgent,
+    "support": SupportAgent,
+    "tools": ToolsAgent,
+}
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MEMORY_FILE = BASE_DIR / "memory_v2_clean.json"
@@ -47,8 +62,16 @@ class GraphState(TypedDict):
     messages: List[Dict[str, Any]]
     output: Optional[str]
     route: Optional[str]
+
+    # --- MULTI-AGENT STATE ---
+    active_agent: Optional[str]
+    agent_output: Optional[Dict[str, Any]]
+
+    # --- MEMORY ---
     memory: Dict[str, Any]
     memory_instruction: Optional[Dict[str, Any]]
+
+    # --- TOOLS ---
     tool_name: Optional[str]
     tool_args: Optional[Dict[str, Any]]
 
@@ -254,71 +277,10 @@ llm = ChatOllama(
     temperature=0.0,
     num_ctx=32768,  # ajustar a 131072 si usas 128k
 )
-prompt = ChatPromptTemplate.from_messages([
-    ("human", "{input}")
-])
 
 
 def _history(messages: List[Dict[str, Any]]) -> str:
     return "\n".join([f"{m['role']}: {m['content']}" for m in messages])
-
-
-# ------------------------------------------------------------------
-# build_prompt_for_mode — LAYERED, NON-OVERRIDING
-# ------------------------------------------------------------------
-def build_prompt_for_mode(mode: str, state: GraphState) -> str:
-    history = _history(state["messages"])
-
-    # Shared layered context (Layer 2 + Layer 3 as CONTEXT, not rules)
-    context = (
-        "Context — Layer 2 (Operational Contract):\n"
-        + LAYER_2_CONTRACT
-        + "\n\n"
-        "Context — Layer 3 (User Model):\n"
-        + LAYER_3_USER_MODEL
-        + "\n\n"
-    )
-
-    # LLM mode (default)
-    if mode == "llm":
-        return (
-            context
-            + "Previous context:\n"
-            + history
-            + "\n\nUser instruction:\n"
-            + state["input"]
-        )
-
-    # Summarizer mode (external prompt, layered)
-    if mode == "summarizer":
-        template = load_prompt("summarizer")
-        return (
-            context
-            + template
-                .replace("{history}", history)
-                .replace("{input}", state["input"])
-        )
-
-    # Analysis mode (no identity override, no hard format imposition)
-    if mode == "analysis":
-        return (
-            context
-            + "Analysis request:\n"
-            + state["input"]
-            + "\n\nContext:\n"
-            + history
-        )
-
-    # Command explanation mode (still contextual, no role override)
-    if mode == "command":
-        return (
-            context
-            + "Command explanation request:\n"
-            + state["input"]
-        )
-
-    # Fallback
-    return context + "Instruction:\n" + state["input"]
 
 
 # ------------------------------------------------------------------
@@ -358,28 +320,86 @@ def profile_initializer_node(state: GraphState) -> GraphState:
 
 
 def router_node(state: GraphState) -> GraphState:
-    text = state["input"].strip()
+    text = state["input"].strip().lower()
 
-    # --- DETECCIÓN DE TOOL-CALLING ---
-    # Formato mínimo: tool: nombre argumento1=valor argumento2=valor
-    if text.lower().startswith("tool:"):
+    if text.startswith("tool:"):
         state["route"] = "tool"
-        return state
-
-    # --- RUTAS EXISTENTES ---
-    lower = text.lower()
-    if any(k in lower for k in ["comando", "cmd", "explica", "cómo funciona", "command", "explain"]):
-        route = "command"
-    elif any(k in lower for k in ["resumen", "resume", "resumir", "summary"]):
-        route = "summarizer"
-    elif any(k in lower for k in ["analiza", "análisis", "analysis", "evaluate"]):
-        route = "analysis"
-    elif any(k in lower for k in ["qué recuerdas", "que recuerdas", "memoria", "memory"]):
-        route = "memory_query"
     else:
-        route = "llm"
+        state["route"] = "agent"
 
-    state["route"] = route
+    return state
+
+
+def agent_router_node(state: GraphState) -> GraphState:
+    text = state["input"].lower()
+
+    if any(k in text for k in ["investiga", "research", "analiza mercado"]):
+        agent = "research"
+    elif any(k in text for k in ["finanzas", "precio", "coste", "roi"]):
+        agent = "finance"
+    elif any(k in text for k in ["marketing", "campaña", "branding"]):
+        agent = "marketing"
+    elif any(k in text for k in ["ventas", "sales", "pipeline"]):
+        agent = "sales"
+    else:
+        agent = "support"
+
+    state["active_agent"] = agent
+    log("AGENT ROUTER", f"Selected agent: {agent}")
+    return state
+
+
+def agent_executor_node(state: GraphState) -> GraphState:
+    agent_name = state.get("active_agent")
+
+    if not agent_name or agent_name not in AGENT_REGISTRY:
+        raise ValueError(f"Invalid agent selected: {agent_name}")
+
+    AgentClass = AGENT_REGISTRY[agent_name]
+
+    # --- LOAD PROMPT (ROOT /agents/prompts) ---
+    prompt_path = BASE_DIR / "agents" / "prompts" / f"{agent_name}.md"
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt not found: {prompt_path}")
+
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        prompt = f.read()
+
+    # --- LOAD CONTRACT (ROOT /agents/contracts) ---
+    contract_path = BASE_DIR / "agents" / "contracts" / f"{agent_name}.json"
+    if not contract_path.exists():
+        raise FileNotFoundError(f"Contract not found: {contract_path}")
+
+    with open(contract_path, "r", encoding="utf-8") as f:
+        contract = json.load(f)
+
+    # --- INSTANTIATE AGENT ---
+    agent = AgentClass(
+        name=agent_name,
+        role=contract.get("role", ""),
+        prompt=prompt,
+        contract=contract,
+    )
+
+    # --- EXECUTE AGENT ---
+    result = agent.handle(
+        task=state["input"],
+        context={
+            "memory": state["memory"],
+            "messages": state["messages"],
+        },
+    )
+
+    # --- WRITE BACK TO STATE ---
+    state["agent_output"] = result
+    state["output"] = result.get("output", "")
+
+    state["messages"].append({
+        "role": agent_name,
+        "content": state["output"],
+    })
+
+    log("AGENT EXECUTOR", f"Agent '{agent_name}' executed successfully")
     return state
 
 
@@ -402,76 +422,37 @@ def parse_tool_command(text: str) -> Dict[str, Any]:
     return {"tool_name": tool_name, "tool_args": args}
 
 
+def validate_tool_call(tool_name: str, tool_args: Dict[str, Any]) -> None:
+    if tool_name not in TOOL_SCHEMAS:
+        raise ValueError(f"Tool '{tool_name}' is not registered")
+
+    schema = TOOL_SCHEMAS[tool_name]
+    required = schema.get("required_args", [])
+
+    for arg in required:
+        if arg not in tool_args:
+            raise ValueError(f"Missing required arg '{arg}' for tool '{tool_name}'")
+
+
 def tool_parser_node(state: GraphState) -> GraphState:
     """
     Nodo que interpreta el comando 'tool:' del input
     y rellena state["tool_name"] y state["tool_args"].
+    Valida el tool contra TOOL_SCHEMAS antes de ejecutar.
     """
     parsed = parse_tool_command(state["input"])
 
     state["tool_name"] = parsed.get("tool_name")
     state["tool_args"] = parsed.get("tool_args", {})
 
+    # --- HARD VALIDATION ---
+    validate_tool_call(state["tool_name"], state["tool_args"])
+
     log(
         "TOOL PARSER",
         f"tool_name={state['tool_name']}, tool_args={state['tool_args']}"
     )
 
-    return state
-
-
-def router_edge(state: GraphState) -> str:
-    return state["route"]
-
-
-def llm_node(state: GraphState) -> GraphState:
-    prompt_text = build_prompt_for_mode("llm", state)
-    log("LLM PROMPT", prompt_text)
-    response = llm.invoke(prompt_text)
-    output = response.content
-    state["output"] = output
-    state["messages"].append({"role": "assistant", "content": output})
-    return state
-
-
-def summarizer_node(state: GraphState) -> GraphState:
-    prompt_text = build_prompt_for_mode("summarizer", state)
-    log("SUMMARIZER PROMPT", prompt_text)
-    response = llm.invoke(prompt_text)
-    output = response.content
-    state["output"] = output
-    state["messages"].append({"role": "assistant", "content": output})
-    return state
-
-
-def analysis_node(state: GraphState) -> GraphState:
-    prompt_text = build_prompt_for_mode("analysis", state)
-    log("ANALYSIS PROMPT", prompt_text)
-    response = llm.invoke(prompt_text)
-    output = response.content
-    state["output"] = output
-    state["messages"].append({"role": "assistant", "content": output})
-    return state
-
-
-def command_explainer_node(state: GraphState) -> GraphState:
-    prompt_text = build_prompt_for_mode("command", state)
-    log("COMMAND PROMPT", prompt_text)
-    response = llm.invoke(prompt_text)
-    output = response.content
-    state["output"] = output
-    state["messages"].append({"role": "assistant", "content": output})
-    return state
-
-
-def memory_query_node(state: GraphState) -> GraphState:
-    memory = state["memory"]
-    short = memory.get("short_term", [])
-    summary = "\n".join([f"{m['role']}: {m['content']}" for m in short[-20:]])
-    output = "Last 20 messages in short_term:\n\n" + summary
-    log("MEMORY QUERY RAW", output)
-    state["output"] = output
-    state["messages"].append({"role": "assistant", "content": output})
     return state
 
 
@@ -557,71 +538,48 @@ def memory_writer_node(state: GraphState) -> GraphState:
 def get_graph():
     graph = StateGraph(GraphState)
 
-    # -------------------------
-    # NODOS EXISTENTES
-    # -------------------------
+    # --- CORE NODES ---
     graph.add_node("load_memory", load_memory)
     graph.add_node("profile_initializer", profile_initializer_node)
     graph.add_node("router", router_node)
-    graph.add_node("llm", llm_node)
-    graph.add_node("summarizer", summarizer_node)
-    graph.add_node("analysis", analysis_node)
-    graph.add_node("command", command_explainer_node)
-    graph.add_node("memory_query", memory_query_node)
+
+    # --- AGENT FLOW ---
+    graph.add_node("agent_router", agent_router_node)
+    graph.add_node("agent_executor", agent_executor_node)
+
+    # --- TOOL FLOW ---
+    graph.add_node("tool_parser", tool_parser_node)
+    graph.add_node("tool_executor", tools_node)
+
+    # --- MEMORY FLOW ---
     graph.add_node("memory_manager", memory_manager_node)
     graph.add_node("memory_writer", memory_writer_node)
 
-    # -------------------------
-    # NUEVOS NODOS
-    # -------------------------
-    graph.add_node("tool_parser", tool_parser_node)
-    graph.add_node("tool_executor", tools_node)   # <--- NOMBRE CORREGIDO
-
-    # -------------------------
-    # ENTRY POINT
-    # -------------------------
+    # --- ENTRY POINT ---
     graph.set_entry_point("load_memory")
+
+    # --- INITIAL FLOW ---
     graph.add_edge("load_memory", "profile_initializer")
     graph.add_edge("profile_initializer", "router")
 
-    # -------------------------
-    # ROUTER EXTENDIDO
-    # -------------------------
+    # --- ROUTING (INLINE, NO router_edge) ---
     graph.add_conditional_edges(
         "router",
-        router_edge,
+        lambda state: state["route"],
         {
-            "llm": "llm",
-            "summarizer": "summarizer",
-            "analysis": "analysis",
-            "command": "command",
-            "memory_query": "memory_query",
-            "tool": "tool_parser",   # <--- RUTA A PARSER
+            "agent": "agent_router",
+            "tool": "tool_parser",
         },
     )
 
-    # -------------------------
-    # PARSER → TOOL EXECUTOR
-    # -------------------------
-    graph.add_edge("tool_parser", "tool_executor")
-
-    # -------------------------
-    # POST-PROCESAMIENTO
-    # -------------------------
-    # SOLO los nodos de conversación pasan por memory_manager
-    for node in [
-        "llm",
-        "summarizer",
-        "analysis",
-        "command",
-        "memory_query",
-    ]:
-        graph.add_edge(node, "memory_manager")
-
-    # Las herramientas NO pasan por memory_manager
-    graph.add_edge("tool_executor", END)
-
+    # --- AGENT PATH ---
+    graph.add_edge("agent_router", "agent_executor")
+    graph.add_edge("agent_executor", "memory_manager")
     graph.add_edge("memory_manager", "memory_writer")
     graph.add_edge("memory_writer", END)
+
+    # --- TOOL PATH ---
+    graph.add_edge("tool_parser", "tool_executor")
+    graph.add_edge("tool_executor", END)
 
     return graph.compile()

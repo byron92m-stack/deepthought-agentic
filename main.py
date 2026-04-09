@@ -3,7 +3,7 @@ from app.graph import get_graph
 def main():
     graph = get_graph()
 
-    print("deepthought – Full Cognitive Graph v1.1")
+    print("deepthought – Full Cognitive Graph v2.0")
     print("Type 'exit' to quit.\n")
 
     while True:
@@ -19,11 +19,9 @@ def main():
 
         state = {
             "input": user_input,
-            "messages": [],  # ← limpio, el grafo lo llena correctamente
+            "messages": [],
             "output": None,
             "route": None,
-            "memory": {},
-            "memory_instruction": None
         }
 
         try:
